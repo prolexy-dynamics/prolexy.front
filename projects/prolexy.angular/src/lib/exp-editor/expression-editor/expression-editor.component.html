@@ -1,0 +1,55 @@
+<div #container [ngClass]="{'editor': true, invalid: errors.length}"
+    (keydown.Enter)="selectToken(activeSuggestion, true, $event)" (keydown.ArrowUp)="traversOnSuggestions($event, -1)"
+    (keydown.ArrowDown)="traversOnSuggestions($event, 1)"
+    (keydown.ArrowLeft)="showSuggestion(suggestionOpened - 1, $event)" (keydown.Escape)="suggestionOpened = -1"
+    (keydown.ArrowRight)="showSuggestion(suggestionOpened + 1, $event)" (keydown.Delete)="remove(suggestionOpened)"
+    (keydown.Backspace)="remove(suggestionOpened - 1)" tabindex="0">
+    <div class="exp-editor-container">
+        <ng-container *ngFor="let t of tokens;index as i">
+            <br *ngIf="mustBreakBefor(i)" />
+            <span *ngIf="mustBreakBefor(i)">
+                <span class="indent" *ngFor="let s of scope(i)"></span>
+            </span>
+            <span [ngClass]="translate(t.tokenType, i)" [attr.val]="t.value" [tabindex]="i"
+                (click)="showSuggestion(i, $event)" (focus)="showSuggestion(i, $event)" (keydown)="filter($event)"
+                #tokens (mouseenter)="showErrorMessages (i)" cTooltipPlacement="top">
+                <ng-container *ngIf="t.type === PrimitiveTypes.string">
+                    <app-expression-string-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'">>
+                    </app-expression-string-editor>
+                </ng-container>
+                <ng-container *ngIf="t.declaration">
+                    <app-expression-declaration-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'">>
+                    </app-expression-declaration-editor>
+                </ng-container>
+                <ng-container *ngIf="t.type === PrimitiveTypes.number">
+                    <app-expression-number-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'">>
+                    </app-expression-number-editor>
+                </ng-container>
+                <ng-container *ngIf="t.type === PrimitiveTypes.datetime">
+                    <app-expression-datetime-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'">
+                    </app-expression-datetime-editor>
+                </ng-container>
+                <ng-container *ngIf="isEnumeration(t)">
+                    <app-expression-enumeration-editor [token]="t"></app-expression-enumeration-editor>
+                </ng-container>
+                <ng-container *ngIf="t.tokenType !== TokenType.const && !t.declaration">{{t.text}}</ng-container>
+                <ul *ngIf="suggestionOpened === i">
+                    <li *ngFor="let t of getSuggestions(); index as j" [ngClass]="{active: activeSuggestion === j}"
+                        (click)="selectToken(j, false, $event)">
+                        <span class="text">{{t.text}}</span>
+                    </li>
+                </ul>
+            </span>
+            <br *ngIf="mustBreakAfter(i)" />
+            <span *ngIf="mustBreakAfter(i)">
+                <span class="indent" *ngFor="let s of scope(i + 1)"></span>
+            </span>
+
+        </ng-container>
+    </div>
+</div>
+<div class="error-panel">
+    <ul>
+        <li *ngFor="let error of errorMessages">{{error.message}}</li>
+    </ul>
+</div>

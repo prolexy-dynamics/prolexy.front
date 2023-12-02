@@ -1,0 +1,16 @@
+<ng-container *ngIf="mode === 'edit'">
+    <span #myInput type="number" [textContent]="_tmp" (input)="setValue($event)"
+      (blur)="switchToView()" 
+      (keypress)="handleDigit($event)"
+        (keydown.Tab)="switchToView()" contenteditable="true"
+        (keydown.Backspace)="$event.stopPropagation()"
+        (keydown.ArrowUp)="$event.stopPropagation()"
+        (keydown.ArrowDown)="$event.stopPropagation()"
+        (keydown.ArrowLeft)="$event.stopPropagation()"
+        (keydown.ArrowRight)="$event.stopPropagation()"
+        (keydown.Delete)="$event.stopPropagation()"
+        (keydown.Backspace)="$event.stopPropagation()" ></span>
+</ng-container>
+<ng-container *ngIf="mode === 'view'">
+    <span (click)="switchToEdit()">{{token.value}}</span>
+</ng-container>

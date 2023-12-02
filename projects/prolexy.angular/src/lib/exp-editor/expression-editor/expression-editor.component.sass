@@ -1,0 +1,94 @@
+.editor:focus-visible
+.editor
+    ::ng-deep .mat-icon-button
+        color: blue
+.invalid.editor
+    outline: red auto 1px
+.editor
+    outline: lightgray auto 1px
+    background-color: white
+    width: 100%
+    height: 90%
+    font-size: small
+    font-family: 'DejaVu Sans Mono', sans-serif
+    span.indent
+        padding-left: 20px
+    span
+        border-radius: 4px
+        cursor: pointer
+        position: relative
+        line-height: 24px
+    span.not-selected:hover
+        background-color: lightblue
+    .error
+        text-decoration-line: underline
+        text-decoration-style: wavy
+        text-decoration-color: red
+        text-decoration-thickness: from-font
+    .keyword
+        color: #000
+        font-weight: 900
+    .keyword:before,
+    .keyword:after
+        content: ' '
+    .operations
+        color: #333
+        font-weight: 400
+        padding: 0px 4px
+    .operations:before,
+    .operations:after
+        content: ' '
+    .operations[val='.']
+        padding: 0
+    .operations[val='.']:before,
+    .operations[val='.']:after
+            content: ''
+    .identifier
+        color: #166ccf
+        font-weight: bold
+    .const,
+    .const.string
+        color: #16A101 !important
+        font-style: italic
+        font-weight: 800
+    ul
+        background-color: white
+        position: absolute
+        left: 0
+        border: 1px solid black
+        border-radius: 4px
+        top: 30px
+        border-radius: 4px
+        padding: 10px 15px
+        z-index: 1
+        li
+            list-style: none
+            border-radius: 4px
+            white-space: nowrap
+            display: flex
+            margin: 0 -10px
+            padding: 0px 10px 0px 10px
+            color: #000
+            font-weight: 200
+            font-size: initial
+            span
+                padding: 0 5px
+                cursor: pointer
+            .before
+            .text
+                flex-grow: 1
+            .after
+                justify-self: flex-end
+        li.active
+                background-color: #e6ff8b
+        li:hover
+            background-color: #e6ff8b
+        li:hover span
+            background-color: #e6ff8b
+    .exp-editor-container
+        padding: 10px
+.error-panel
+    border-radius: 4px
+    color: red
+    margin-top: 3px
+    background: lightgray
