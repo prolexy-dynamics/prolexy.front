@@ -6,4 +6,5 @@ export *  from "./lib/languages/ast";
 export *  from "./lib/languages/semantic-error-analizer";
 export *  from "./lib/languages/syntax-error-visitor";
 export *  from "./lib/languages/terminal";
+export {createTypeFromJson}  from "./lib/models/type-data";
 

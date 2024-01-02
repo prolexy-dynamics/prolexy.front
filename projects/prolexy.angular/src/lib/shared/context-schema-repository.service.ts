@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { ContextSchemaRepository, ExpType } from 'prolexy.core';
+import { ContextSchema, ContextSchemaRepository, ExpType } from 'prolexy.core';
 
 @Injectable({
   providedIn: 'root'
@@ -15,5 +15,8 @@ export class ContextSchemaRepositoryService extends ContextSchemaRepository {
   }
   override register(schemaName: string, type: ExpType) {
     this._repository.register(schemaName, type);
+  }
+  override getAllRegisteredType(): ContextSchema[]{
+    return this._repository.getAllRegisteredType();
   }
 }

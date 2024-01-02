@@ -1,4 +1,5 @@
-import { ContextSchema, Enumeration, ExpType, ExtensionMethod, Method, MethodSigneture, Property } from "../models/context-schema";
+import { GenericType } from "../models/context-schema";
+import { ContextSchema, Enumerable, Enumeration, ExpType, ExtensionMethod, Method, MethodSigneture, Property } from "../models/context-schema";
 import { OperationOrders } from "../models/operation-orders";
 import { binaryoperations, dateOperations, IType, KeyWords, logicalOperations, numericOperations, Operations, PrimitiveTypes, relationalOperations, stringOperations, Token, TokenType } from "../models/token";
 import { Stack } from "../services/Stack";
@@ -88,15 +89,23 @@ export class LiteralPrimitive extends Ast {
 }
 export class ExpectedKeywords extends Ast {
     constructor(public keywords: Array<KeyWords>, public token: Token | undefined, span: Span) {
-        super(null!, new Span(span.start, span.start));
+        super(null!, new Span(span.start, span.end));
     }
     visit<T>(visitor: AstVisitor<T>, context: T): any {
         return visitor.visitExpectedKeywords(this, context);
     }
 }
+export class CompositionExpected extends Ast {
+    constructor(public expectations: Array<(ExpectedKeywords | ExpectedTokenTypes)>, span: Span) {
+        super(undefined, new Span(span.start, span.end));
+    }
+    visit<T>(visitor: AstVisitor<T>, context: T): any {
+        return visitor.visitCompositExpectations(this, context);
+    }
+}
 export class ExpectedTokenTypes extends Ast {
     constructor(public tokenTypes: Array<TokenType>, public operators: Operations[], span: Span) {
-        super(undefined, new Span(span.start, span.start));
+        super(undefined, new Span(span.start, span.end));
     }
     visit<T>(visitor: AstVisitor<T>, context: T): any {
         return visitor.visitExpectedTokenTypes(this, context);
@@ -104,7 +113,7 @@ export class ExpectedTokenTypes extends Ast {
 }
 export class ExpectedDeclaration extends Ast {
     constructor(span: Span) {
-        super(undefined, new Span(span.start, span.start));
+        super(undefined, new Span(span.start, span.end));
     }
     visit<T>(visitor: AstVisitor<T>, context: T): any {
         return visitor.visitExpectedDeclaration(this, context);
@@ -142,8 +151,18 @@ export class Priority extends Ast {
         return visitor.visitPriority(this.ast, context);
     }
 }
+export class Instantiation extends Ast {
+    constructor(public typeIdentification: Token, public parameters: Array<Ast>, span: Span) {
+        super(new ExpectedTokenTypes([TokenType.identifier], [], span), span);
+    }
+    visit<T>(visitor: AstVisitor<T>, context: T) {
+        return visitor.visitInstantiate(this, context);
+    }
+
+}
 export interface AstVisitor<T> {
     visitDeclaration(declaration: Declaration, context: T): any;
+    visitInstantiate(ast: Instantiation, context: T): any;
     visitPriority(ast: Ast, context: T): any;
     visitAll(statements: Ast[], context: T): any;
     visitIfStatement(ifStatement: IfStatement, context: T): any;
@@ -155,6 +174,7 @@ export interface AstVisitor<T> {
     visitCall(ast: Call, context: T): any;
     visitAnonymousMethod(ast: AnonymousMethod, context: T): any;
     visitExpectedKeywords(ast: ExpectedKeywords, context: T): any;
+    visitCompositExpectations(ast: CompositionExpected, context: T): any;
     visitExpectedTokenTypes(ast: ExpectedTokenTypes, context: T): any;
     visitExpectedDeclaration(declaration: Ast, context: T): any;
 
@@ -169,11 +189,29 @@ export class TypeDetectorContext {
         public binaryAstStack: Stack<Binary>,
         public stackCall: Stack<ExpType>) {
     }
+    public get allTypes(): ContextSchema[] {
+        return this.schema.repository.getAllRegisteredType();
+    }
 };
 type TypeDetectorResult = { type?: ExpType, suggestions: Array<Token>, suggestionLoader?: Promise<Array<Token>>, lastOperandType?: ExpType, lastOperator?: Operations };
 export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
+    visitCompositExpectations(ast: CompositionExpected, context: TypeDetectorContext) {
+        var result: any = { suggestions: ast.expectations.reduce((a, b) => a.concat(b.visit(this, context).suggestions), []) };
+        return result;
+    }
     visitDeclaration(declaration: Declaration, context: TypeDetectorContext) {
         return {};
+    }
+    visitInstantiate(ast: Instantiation, context: TypeDetectorContext): any {
+        if (context.typeAt - ast.span.start < 2)
+            return {
+                suggestions: context.allTypes.map(t => new Token(TokenType.identifier, t.name, PrimitiveTypes.bool, true))
+            };
+        for (const element of ast.parameters) {
+            if (element.span.contains(context.typeAt))
+                return element.visit(this, context);
+        }
+        return this.expectedOperators({ suggestions: [], type: context.allTypes.find(t => t.name === ast.typeIdentification?.value) }, context);
     }
     visit?(ast: Ast, context?: any) {
         throw new Error("Method not implemented.");
@@ -199,12 +237,11 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
         });
     }
     visitExpectedTokenTypes(ast: ExpectedTokenTypes, context: TypeDetectorContext) {
-        debugger;
         if (!ast.span.contains(context.typeAt))
             return null;
         var result = (ast.tokenTypes.indexOf(TokenType.identifier) > -1)
             ? this.suggestIdentifier(context, undefined, context.expectedType)
-            : { suggestions: [] as Array<Token>, suggestionLoader: null as (Promise<Array<Token>> | null)};
+            : { suggestions: [] as Array<Token>, suggestionLoader: null as (Promise<Array<Token>> | null) };
         if (ast.tokenTypes.indexOf(TokenType.const) > -1) {
             if (context.expectedType === PrimitiveTypes.number) {
                 if (context.lastselectedProperty?.dataSource?.url)
@@ -351,12 +388,12 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
             return { suggestions: [new Token(TokenType.operation, Operations.begin_parentese)] };
         }
         var method = ast.method.visit(this, context) as TypeDetectorResult;
-        var argIndex = 0, signature : MethodSigneture | null = null;
+        var argIndex = 0, signature: MethodSigneture | null = null;
         if (method?.type instanceof MethodSigneture) {
             signature = (method.type as MethodSigneture);
         }
-        context.leftType = null!;
         for (let i = 0; signature != null && i < signature.parameters.length; i++) {
+            context.leftType = null!;
             var arg = ast.args[i];
             if (arg.span.contains(context.typeAt)) {
                 if (arg instanceof AnonymousMethod) {
@@ -369,6 +406,7 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
                     }
                     context.stackCall.push(schem);
                 }
+
                 context.expectedType = signature.parameters[argIndex];
                 if (arg.span.start !== arg.span.end && arg.span.end === context.typeAt) {
                     var result = arg.visit(this, context);
@@ -376,6 +414,15 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
                     return result;
                 }
                 return arg.visit(this, context);
+            }
+            else if (signature.parameters[i].genericArguments.length) {
+                var argType = arg.visit(this, context).type;
+                if (argType) {
+                    for (const iterator of signature.parameters[i].genericArguments) {
+                        signature.setSpecifitType(iterator.name, argType);
+                        signature = signature?.makeGenericType({});
+                    }
+                }
             }
             argIndex++;
         }
@@ -394,27 +441,39 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
         var expectedType = context.expectedType;
         context.expectedType = context.schema.create();
         var result = ast.left.visit(this, context) as TypeDetectorResult;
+        var selectedProperty = (result.type as ContextSchema).properties?.find(a => a.name === ast.token?.value);
         if (ast.left.span.end == context.typeAt ||
-            (ast.span.end === context.typeAt && result?.type instanceof ContextSchema &&
-                (result.type as ContextSchema).properties.find(a => a.name === ast.token.value)?.type instanceof ContextSchema)) {
+            (ast.span.end === context.typeAt &&
+                result?.type instanceof ContextSchema &&
+                selectedProperty?.type != null)) {
             result.suggestions = [new Token(TokenType.operation, Operations.point)];
-            return result;
+            if (selectedProperty?.type instanceof ContextSchema || selectedProperty?.type instanceof Enumerable)
+                return result;
         }
         if (result.type instanceof ContextSchema)
-            context.lastselectedProperty = result.type.properties.find(p => p.name == ast.token?.value);
+            context.lastselectedProperty = selectedProperty;
 
         if (ast.left.span.contains(context.typeAt))
             return result;
-        if (result?.type instanceof ContextSchema || ContextSchema.extensionMethods.find(em => em.methodContext.isAssignableFrom(result?.type))) {
+        if (result?.type instanceof ContextSchema ||
+            ContextSchema.extensionMethods.find(em => em.methodContext.isAssignableFrom(result?.type))) {
             if (ast.span.end <= context.typeAt) {
-                if (result.type instanceof ContextSchema)
-                    result.type = (result.type as ContextSchema)!.properties.find(a => a.name === ast.token.value)?.type;
+                if (result.type instanceof ContextSchema &&
+                    selectedProperty)
+                    result.type = selectedProperty.type;
                 else {
-                    var method = ContextSchema.extensionMethods.find(em => em.methodContext.isAssignableFrom(result.type!) && em.name === ast.token.value);
+                    var method = ContextSchema.extensionMethods.find(em => em.methodContext.isAssignableFrom(result.type!) && em.name === ast.token.value) ||
+                        (result.type as ContextSchema)
+                            ?.methods
+                            .filter(m => m.name === ast.token.value)
+                            .map(m => new ExtensionMethod(m.name, m.name, result.type as ContextSchema, m.signeture))[0];
                     if (method) {
-                        var tmp = Object.create(ExtensionMethod.prototype);
-                        method = Object.assign(tmp, { caption: method.caption, methodContext: result.type, signeture: method.signeture });
-                        result.type = method!.makeGenericMethod();
+                        var specificTypes = {} as any;
+                        let pidx = 0;
+                        for (var garg of method.methodContext.genericArguments) {
+                            specificTypes[garg.name] = result.type!.genericArguments[pidx++];
+                        }
+                        result.type = method!.makeGenericMethod(specificTypes);
                         result.suggestions = [new Token(TokenType.operation, Operations.begin_parentese)];
                         return result;
                     }
@@ -462,19 +521,21 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
             }
             else if (expectedType instanceof ContextSchema) {
                 result = [...result, ...ctx.properties
-                    .filter(p => p.type instanceof ContextSchema)
+                    .filter(p => p.type instanceof ContextSchema || p.type instanceof Enumerable)
                     .map(m => new Token(TokenType.identifier, `$${m.name}:${m.caption}`))];
             }
             else {
                 result = [...result, ...ctx.properties
                     .filter(p =>
                         !expectedType ||
+                        expectedType instanceof GenericType ||
                         expectedType === PrimitiveTypes.bool ||
                         p.type === expectedType ||
                         p.type instanceof ContextSchema)
                     .map(m => new Token(TokenType.identifier, `$${m.name}:${m.caption}`))
                     .concat(ctx.methods.filter(p =>
                         !expectedType ||
+                        expectedType instanceof GenericType ||
                         expectedType === PrimitiveTypes.bool ||
                         p.signeture.returnType === expectedType ||
                         ((p.signeture.returnType == expectedType)))
@@ -547,6 +608,8 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
     }
     private expectedOperators(left: Ast | TypeDetectorResult, context: TypeDetectorContext) {
         var leftExp = left instanceof Ast ? left.visit(this, context) as TypeDetectorResult : left as TypeDetectorResult;
+        if (leftExp.type instanceof ContextSchema)
+            return { type: leftExp.type, suggestions: [new Token(TokenType.operation, Operations.point)] };
         var last = context.binaryAstStack.peek();
         var result: Token[] = [];
         var blackList: Binary[] = [];

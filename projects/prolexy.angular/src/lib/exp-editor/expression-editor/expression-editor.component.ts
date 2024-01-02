@@ -37,7 +37,6 @@ export class ExpressionEditorComponent implements OnInit {
     this.filterString = '';
     this.suggestionOpened = idx;
     this.suggestions = await (this.editorMode === 'statement' ? suggestNextTokensInStatementMode : suggestNextTokensInExpressionMode)(this.schema, this.tokens, idx);
-    debugger;
     var balanced = 0;
     if (!this.suggestions.find(t => t.tokenType === TokenType.operation && t.value === Operations.end_parentese)) {
       for (var i = 0; i < idx; i++)
@@ -91,7 +90,7 @@ export class ExpressionEditorComponent implements OnInit {
   traversOnSuggestions($event: any, direction: number) {
     $event.preventDefault();
     if (this.suggestions?.length)
-      this.activeSuggestion = (this.activeSuggestion + direction) % this.suggestions.length;
+      this.activeSuggestion = (this.activeSuggestion + direction + this.suggestions.length) % this.suggestions.length;
   }
   selectToken(suggestionIndex: number, replace: boolean, e: any) {
     e.stopPropagation();

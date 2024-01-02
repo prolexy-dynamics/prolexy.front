@@ -1,12 +1,15 @@
 import { ContextSchema, Enumeration, ExpType, ExtensionMethod, MethodSigneture, Property } from '../models/context-schema';
 import { dateOperations, IType, KeyWords, logicalOperations, numericOperations, Operations, PrimitiveTypes, relationalOperations, stringOperations, Token, TokenType } from '../models/token';
 import { Stack } from '../services/Stack';
-import { AccessMember, AnonymousMethod, Assignment, Ast, AstVisitor, Binary, Call, Declaration, ExpectedKeywords, ExpectedTokenTypes, IfStatement, ImplicitAccessMember, LiteralPrimitive, Span } from './ast';
+import { AccessMember, AnonymousMethod, Assignment, Ast, AstVisitor, Binary, Call, CompositionExpected, Declaration, ExpectedKeywords, ExpectedTokenTypes, IfStatement, ImplicitAccessMember, Instantiation, LiteralPrimitive, Span } from './ast';
 export class SemanticErrorContext {
-    constructor(public schema: IType) { }
+    constructor(public schema: ContextSchema) { }
     errors: Array<{ span: Span, message: string }> = [];
     stackCall: Stack<IType> = new Stack<IType>();
-    expectedType: IType | undefined = null!;
+    expectedType: Stack<IType> = new Stack<IType>;
+    public get allTypes(): ContextSchema[] {
+        return this.schema.repository.getAllRegisteredType();
+    }
 };
 var compatiblityChecker = [
     { operations: [...numericOperations], left: PrimitiveTypes.number, right: PrimitiveTypes.number, result: PrimitiveTypes.number },
@@ -20,8 +23,9 @@ var compatiblityChecker = [
     { operations: [...dateOperations], left: PrimitiveTypes.datetime, right: PrimitiveTypes.datetime, result: PrimitiveTypes.bool },
 ];
 export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
+    visitCompositExpectations(ast: CompositionExpected, context: SemanticErrorContext) {
+    }
     visit?(ast: Ast, context?: any) {
-        throw new Error('Method not implemented.');
     }
     visitExpectedDeclaration(declaration: Declaration, context: SemanticErrorContext) {
     }
@@ -32,6 +36,9 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
     visitDeclaration(declaration: Declaration, context: SemanticErrorContext) {
     }
     visitIfStatement(ifStatement: IfStatement, context: SemanticErrorContext): any {
+    }
+    visitInstantiate(ast: Instantiation, context: SemanticErrorContext): any {
+        return context.allTypes.find(t => t.name === ast.typeIdentification?.value);
     }
     visitAssignment(assignment: Assignment, context: SemanticErrorContext): any {
         var leftType = assignment.left.visit(this, context) as ExpType;
@@ -65,15 +72,15 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
         return false;
     }
     visitCall(ast: Call, context: SemanticErrorContext): any {
-        var m = ast.method.visit(this, context) as MethodSigneture;
-        if (!(m instanceof MethodSigneture)) {
+        var signature = ast.method.visit(this, context) as MethodSigneture;
+        if (!(signature instanceof MethodSigneture)) {
             context.errors.push({ span: ast.method.span, message: `Method not found: method ${ast.method.token.text} not found in the context` });
             return;
         }
         var i = 0;
         for (let arg of ast.args) {
             if (arg instanceof AnonymousMethod) {
-                var methodParameters = (m.parameters[i] as MethodSigneture).parameters;
+                var methodParameters = (signature.parameters[i] as MethodSigneture).parameters;
                 var params = (arg as AnonymousMethod).parameters;
                 var schem = (context.schema as ContextSchema).create();
                 let idx = 0;
@@ -83,46 +90,64 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
                 }
                 context.stackCall.push(schem);
             }
-            context.expectedType = m.parameters[i++];
-            arg.visit(this, context);
+            context.expectedType.push(signature.parameters[i]);
+            var parameterType = arg.visit(this, context);
+            if (parameterType) {
+                for (const iterator of signature.parameters[i].genericArguments) {
+                    signature.setSpecifitType(iterator.name, parameterType);
+                    signature = signature?.makeGenericType({});
+                }
+            }
             if (arg instanceof AnonymousMethod) context.stackCall.pop();
+            i++;
         }
-        return m.returnType;
+        return signature.returnType;
     }
     visitAnonymousMethod(ast: AnonymousMethod, context: SemanticErrorContext): any {
-        if (!(context.expectedType instanceof MethodSigneture))
-            context.errors.push({ span: ast.span, message: `expected type is '${context.expectedType?.name}' but anonymous method defined here.` })
-
+        var expected = context.expectedType.pop();
+        if (!(expected instanceof MethodSigneture))
+            context.errors.push({ span: ast.span, message: `expected type is '${expected?.name}' but anonymous method defined here.` })
         var result = ast.expression.visit(this, context) as IType;
-        var returnType = (context.expectedType as MethodSigneture).returnType;
+        if (!expected) return;
+        var returnType = (expected as MethodSigneture).returnType;
         if (!returnType.isAssignableFrom(result))
             context.errors.push({ span: ast.expression.span, message: `expected type is '${returnType?.name}' but expression returns '${result?.name}'.` })
     }
     visitImplicitAccessMember(ast: ImplicitAccessMember, context: SemanticErrorContext): any {
-        return this.resolveTypeFormToken(context, ast.token);
+        return this.resolveTypeFormToken(context, undefined, ast.token);
     }
     visitAccessMember(ast: AccessMember, context: SemanticErrorContext): any {
         var result = ast.left.visit(this, context) as IType;
-        if (result instanceof ContextSchema)
-            return this.resolveTypeFormToken({ ...context, schema: result }, ast.token);
-        return this.resolveTypeFormToken({ ...context, schema: result }, ast.token);
+        return this.resolveTypeFormToken(context, result, ast.token);
     }
-    resolveTypeFormToken(context: SemanticErrorContext, token: Token | undefined): IType {
+    resolveTypeFormToken(context: SemanticErrorContext, leftType: IType | undefined, token: Token | undefined): IType {
         var resolver = (schema: ContextSchema) => schema.properties.find(p => p.name === token?.value)?.type ||
             schema.methods.find(p => p.name === token?.value)?.signeture;
+        if (leftType instanceof ContextSchema) {
+            result = resolver(leftType as ContextSchema);
+            if (result)
+                return result;
+        }
         var result: IType | undefined;
-        for (const schem of context.stackCall.iterator().filter(t => t instanceof ContextSchema)) {
-            result = resolver(schem as ContextSchema);
-            if (result) return result;
+        if (!leftType) {
+            for (const schem of context.stackCall.iterator().filter(t => t instanceof ContextSchema)) {
+                result = resolver(schem as ContextSchema);
+                if (result) return result;
+            }
+            if (context.schema instanceof ContextSchema) {
+                result = resolver(context!.schema);
+                if (result) return result;
+            }
         }
-        if (context.schema instanceof ContextSchema) {
-            result = resolver(context!.schema);
-            if (result) return result;
-        }
-        var method = ContextSchema.extensionMethods.find(p => p.methodContext.isAssignableFrom(context.schema) && p.name === token?.value);
+        var method = ContextSchema.extensionMethods.find(p => p.methodContext.isAssignableFrom(leftType || context.schema) && p.name === token?.value);
         if (!method) return context!.schema;
+        var specificTypes = {} as any;
+        let pidx = 0;
+        for (var garg of method.methodContext.genericArguments) {
+            specificTypes[garg.name] = context.schema.genericArguments[pidx++];
+        }
         return Object.assign(Object.create(ExtensionMethod.prototype), { caption: method.caption, methodContext: context.schema, signeture: method.signeture })
-            .makeGenericMethod();
+            .makeGenericMethod(specificTypes);
     }
     visitLiteralPrimitive(ast: LiteralPrimitive, context: SemanticErrorContext): any {
         return ast.token.type === PrimitiveTypes.enum

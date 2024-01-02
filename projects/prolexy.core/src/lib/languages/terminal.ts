@@ -1,7 +1,7 @@
 import { ContextSchema, ExpType } from "../models/context-schema";
 import { binaryoperations, dateOperations, EOF, KeyWords, logicalOperations, numericOperations, Operations, PrimitiveTypes, relationalOperations, stringOperations, Token, TokenType } from "../models/token";
 import { Stack } from "../services/Stack";
-import { AccessMember, AnonymousMethod, Assignment, Ast, Binary, Call, ExpectedDeclaration, ExpectedKeywords, ExpectedTokenTypes, IfStatement, ImplicitAccessMember, LiteralPrimitive, Priority, Span, Statements, TypeDetectorContext, TypeDetectorVisitor } from "./ast";
+import { AccessMember, AnonymousMethod, Assignment, Ast, Binary, Call, CompositionExpected, ExpectedDeclaration, ExpectedKeywords, ExpectedTokenTypes, IfStatement, ImplicitAccessMember, Instantiation, LiteralPrimitive, Priority, Span, Statements, TypeDetectorContext, TypeDetectorVisitor } from "./ast";
 
 export type Production = (Terminal | NonTerminal);
 export class Terminal {
@@ -456,7 +456,7 @@ export class Parser {
             this.advance();
             return head;
         }
-        return;
+        return undefined;
     }
 
     private parsePrimary(): Ast {
@@ -469,9 +469,14 @@ export class Parser {
         }
         var head = this.peek();
         if (head === EOF || !head) {
-            this.closeSpan();
-            return this.ExpectedTokenTypes([TokenType.const, TokenType.identifier]);
+            var span = this.closeSpan();
+            return new CompositionExpected([
+                new ExpectedTokenTypes([TokenType.const, TokenType.identifier, TokenType.keyword], [], span),
+                new ExpectedKeywords([KeyWords.new], undefined, span)
+            ], span);
         }
+        if (this.consumeOptional(KeyWords.new, TokenType.keyword))
+            return this.parseInstantiate();
         if (head.tokenType === TokenType.identifier) {
             this.advance();
             return new ImplicitAccessMember(head, this.closeSpan());
@@ -488,8 +493,27 @@ export class Parser {
                     return new LiteralPrimitive(head, this.closeSpan());
             }
         }
-        this.closeSpan();
-        return this.ExpectedTokenTypes([TokenType.const, TokenType.identifier]);
+        
+        var span = this.closeSpan();
+        return new CompositionExpected([
+            new ExpectedTokenTypes([TokenType.const, TokenType.identifier, TokenType.keyword], [], span),
+            new ExpectedKeywords([KeyWords.new], undefined, span)
+        ], span);
+    }
+    parseInstantiate(): Ast {
+        var head = this.peek();
+        if (head?.tokenType != TokenType.identifier) {
+            return new Instantiation(head, [], this.closeSpan());
+        }
+
+        var typeIdentification = head;
+        this.advance();
+        if (!this.consumeOptional(Operations.begin_parentese))
+            return new ExpectedTokenTypes([TokenType.operation], [Operations.begin_parentese], this.closeSpan());
+        var args = this.parseArgs();
+        if (!this.consumeOptional(Operations.end_parentese) == null)
+            return new ExpectedTokenTypes([TokenType.operation], [Operations.end_parentese], this.closeSpan());
+        return new Instantiation(typeIdentification, args, this.closeSpan());
     }
     ExpectedTokenTypes(tokenTypes: TokenType[], operators: Operations[] = []): ExpectedTokenTypes {
         this.startSpan();
@@ -539,7 +563,12 @@ export class Parser {
         var head = this.peek();
         while (true) {
             if (!head || head == EOF) {
-                args.push(this.ExpectedTokenTypes([TokenType.const, TokenType.identifier, TokenType.keyword]))
+                this.startSpan();
+                var span = this.closeSpan();
+                args.push(new CompositionExpected([
+                    new ExpectedTokenTypes([TokenType.const, TokenType.identifier], [], span),
+                    new ExpectedKeywords([KeyWords.new], undefined, span)
+                ], span));
                 break;
             }
             if (head.tokenType === TokenType.operation && head.value === Operations.end_parentese)
@@ -567,16 +596,18 @@ export class Parser {
         var head = this.peek();
         if (!head) return new ExpectedDeclaration(this.closeSpan());
         var parameters: Array<Token> = [];
-        while (head?.tokenType == TokenType.identifier) {
+        while (true) {
+            if (head?.tokenType != TokenType.identifier)
+                return new ExpectedDeclaration(this.closeSpan());
             parameters.push(head);
             this.advance();
-            if (!this.consumeOptional(Operations.point))
+            if (!this.consumeOptional(Operations.comma))
                 break;
             head = this.peek();
         }
 
         if (!this.consumeOptional(Operations.arrowFunction))
-            return this.ExpectedTokenTypes([TokenType.operation], [Operations.arrowFunction]);
+            return this.ExpectedTokenTypes([TokenType.operation], [Operations.comma, Operations.arrowFunction]);
         var body = this.parseExp();
         return new AnonymousMethod(parameters, body, this.closeSpan());
     }

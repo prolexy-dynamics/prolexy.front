@@ -1,9 +1,16 @@
 import { ContextSchema, ExpType } from '../models/context-schema';
 import { KeyWords, PrimitiveTypes, Token, TokenType } from '../models/token';
-import { AccessMember, AnonymousMethod, Assignment, Ast, AstVisitor, Binary, Call, Declaration, ExpectedKeywords, ExpectedTokenTypes, IfStatement, ImplicitAccessMember, LiteralPrimitive, Span } from './ast';
+import { AccessMember, AnonymousMethod, Assignment, Ast, AstVisitor, Binary, Call, CompositionExpected, Declaration, ExpectedKeywords, ExpectedTokenTypes, IfStatement, ImplicitAccessMember, Instantiation, LiteralPrimitive, Span } from './ast';
 export type SyntaxErrorContext = { errors: Array<{ span: Span, message: string }> };
 
 export class SyntaxErrorVisitor implements AstVisitor<SyntaxErrorContext> {
+    visitInstantiate(ast: Instantiation, context: SyntaxErrorContext) {
+    }
+    visitCompositExpectations(ast: CompositionExpected, context: SyntaxErrorContext) {
+        for (const iterator of ast.expectations) {
+            iterator.visit(this, context);
+        };
+    }
     visitExpectedDeclaration(declaration: Declaration, context: SyntaxErrorContext) {
         context.errors.push({ span: declaration.span, message: "unexpected token: you must provide identifier to declare new variable or parameter." });
     }
@@ -45,7 +52,6 @@ export class SyntaxErrorVisitor implements AstVisitor<SyntaxErrorContext> {
         }
     }
     visitAnonymousMethod(ast: AnonymousMethod, context: SyntaxErrorContext) {
-
     }
     visitAccessMember(ast: AccessMember, context: SyntaxErrorContext): any {
         ast.left.visit(this, context);

@@ -1,3 +1,6 @@
+import { Enumeration } from "./context-schema";
+import { ITypeData } from "./type-data";
+
 export class Token {
     static operator(op: Operations): Token {
         return new Token(TokenType.operation, op);
@@ -47,16 +50,17 @@ export class Token {
         if (this.type?.name === PrimitiveTypes.enum.name) return true;
         if (this.type === PrimitiveTypes.string)
             return (this.text !== "string");
-        if (this.type === PrimitiveTypes.number) 
+        if (this.type === PrimitiveTypes.number)
             return (this.text !== "number");
         return false;
     }
 }
+
 export interface IType {
     isAssignableFrom(type: IType | undefined): unknown;
     get name(): string;
     get genericArguments(): Array<IType>;
-    makeGenericType(genericTypes: Array<IType>): IType;
+    makeGenericType(specificTypes: { [key: string]: IType } ): IType;
 }
 export class PrimitiveTypes implements IType {
     constructor(public type: string, public extendedType?: PrimitiveTypes) { }
@@ -64,7 +68,7 @@ export class PrimitiveTypes implements IType {
     get genericArguments(): Array<IType> {
         return [];
     }
-    makeGenericType(genericTypes: Array<IType>): IType {
+    makeGenericType(specificTypes: { [key: string]: IType }): IType {
         return this;
     }
     isAssignableFrom(type: IType): unknown {
@@ -91,7 +95,8 @@ export enum TokenType {
     identifier = 4,
 }
 export enum KeyWords {
-    if = 'if', set = 'set', call = 'call', with = 'with', else = 'else', then = 'then', andThen = 'and then', end = 'end', true = 'true', false = 'false', def = 'def'
+    if = 'if', set = 'set', call = 'call', with = 'with', else = 'else', then = 'then', andThen = 'and then', end = 'end', true = 'true', false = 'false', def = 'def',
+    new = "new"
 }
 export const EOF: Token = new Token(TokenType.keyword, "$");
 
