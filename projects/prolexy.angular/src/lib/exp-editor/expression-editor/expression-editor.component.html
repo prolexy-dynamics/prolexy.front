@@ -1,4 +1,4 @@
-<div #container [ngClass]="{'editor': true, invalid: errors.length}"
+<span #container [ngClass]="{'editor': true, invalid: errors.length}"
     (keydown.Enter)="selectToken(activeSuggestion, true, $event)" (keydown.ArrowUp)="traversOnSuggestions($event, -1)"
     (keydown.ArrowDown)="traversOnSuggestions($event, 1)"
     (keydown.ArrowLeft)="showSuggestion(suggestionOpened - 1, $event)" (keydown.Escape)="suggestionOpened = -1"
@@ -47,7 +47,7 @@
 
         </ng-container>
     </div>
-</div>
+</span>
 <div class="error-panel">
     <ul>
         <li *ngFor="let error of errorMessages">{{error.message}}</li>

@@ -3,6 +3,7 @@ import { dateOperations, IType, KeyWords, logicalOperations, numericOperations, 
 import { Stack } from '../services/Stack';
 import { AccessMember, AnonymousMethod, Assignment, Ast, AstVisitor, Binary, Call, CompositionExpected, Declaration, ExpectedKeywords, ExpectedTokenTypes, IfStatement, ImplicitAccessMember, Instantiation, LiteralPrimitive, Span } from './ast';
 export class SemanticErrorContext {
+    leftType: ContextSchema | undefined;
     constructor(public schema: ContextSchema) { }
     errors: Array<{ span: Span, message: string }> = [];
     stackCall: Stack<IType> = new Stack<IType>();
@@ -38,7 +39,19 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
     visitIfStatement(ifStatement: IfStatement, context: SemanticErrorContext): any {
     }
     visitInstantiate(ast: Instantiation, context: SemanticErrorContext): any {
-        return context.allTypes.find(t => t.name === ast.typeIdentification?.value);
+        if (!ast.typeIdentification) return;
+        var type = context.allTypes.find(t => t.name === ast.typeIdentification?.value);
+        var ctor = type?.constructors.filter(c => c.signeture.parameters.length >= ast.parameters.length)[0]?.signeture;
+        if (!ctor) {
+            context.errors.push({ span: ast.span, message: `Constructor not found: constructor not found for type  ${ast.typeIdentification.text}` });
+            return;
+        }
+        this.visitMethod(ctor,
+            ast.parameters,
+            context,
+            ast.span,
+            ast.typeIdentification);
+        return type;
     }
     visitAssignment(assignment: Assignment, context: SemanticErrorContext): any {
         var leftType = assignment.left.visit(this, context) as ExpType;
@@ -73,12 +86,15 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
     }
     visitCall(ast: Call, context: SemanticErrorContext): any {
         var signature = ast.method.visit(this, context) as MethodSigneture;
+        return this.visitMethod(signature, ast.args, context, ast.method.span, ast.method.token);
+    }
+    visitMethod(signature: MethodSigneture, args: Ast[], context: SemanticErrorContext, span: Span, token: Token) {
         if (!(signature instanceof MethodSigneture)) {
-            context.errors.push({ span: ast.method.span, message: `Method not found: method ${ast.method.token.text} not found in the context` });
+            context.errors.push({ span: span, message: `Method not found: method ${token.text} not found in the context` });
             return;
         }
         var i = 0;
-        for (let arg of ast.args) {
+        for (let arg of args) {
             if (arg instanceof AnonymousMethod) {
                 var methodParameters = (signature.parameters[i] as MethodSigneture).parameters;
                 var params = (arg as AnonymousMethod).parameters;
@@ -91,8 +107,13 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
                 context.stackCall.push(schem);
             }
             context.expectedType.push(signature.parameters[i]);
+            context.leftType = signature.methodContext;
             var parameterType = arg.visit(this, context);
-            if (parameterType) {
+            context.expectedType.pop();
+            if (signature.parameters[i]?.isAssignableFrom(parameterType) === false)
+                context.errors.push({ span: args[i].span, message: `Parameter mistmatch. expected type is: ${signature.parameters[i].name}` });
+
+            if (parameterType && signature.parameters[i]) {
                 for (const iterator of signature.parameters[i].genericArguments) {
                     signature.setSpecifitType(iterator.name, parameterType);
                     signature = signature?.makeGenericType({});
@@ -104,14 +125,18 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
         return signature.returnType;
     }
     visitAnonymousMethod(ast: AnonymousMethod, context: SemanticErrorContext): any {
-        var expected = context.expectedType.pop();
+        var expected = context.expectedType.peek();
         if (!(expected instanceof MethodSigneture))
             context.errors.push({ span: ast.span, message: `expected type is '${expected?.name}' but anonymous method defined here.` })
+        else if (expected.parameters.length !== ast.parameters.length)
+            context.errors.push({ span: ast.span, message: `anonymous method must have ${expected.parameters.length} parameters.` })
+
         var result = ast.expression.visit(this, context) as IType;
         if (!expected) return;
         var returnType = (expected as MethodSigneture).returnType;
         if (!returnType.isAssignableFrom(result))
             context.errors.push({ span: ast.expression.span, message: `expected type is '${returnType?.name}' but expression returns '${result?.name}'.` })
+        return expected;
     }
     visitImplicitAccessMember(ast: ImplicitAccessMember, context: SemanticErrorContext): any {
         return this.resolveTypeFormToken(context, undefined, ast.token);
@@ -121,8 +146,13 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
         return this.resolveTypeFormToken(context, result, ast.token);
     }
     resolveTypeFormToken(context: SemanticErrorContext, leftType: IType | undefined, token: Token | undefined): IType {
-        var resolver = (schema: ContextSchema) => schema.properties.find(p => p.name === token?.value)?.type ||
-            schema.methods.find(p => p.name === token?.value)?.signeture;
+        var resolver = (schema: ContextSchema) => {
+            var property = schema.properties.find(p => p.name === token?.value)?.type;
+            if (property) return property;
+            var method = schema.methods.find(p => p.name === token?.value)?.signeture;
+            if (method) method.methodContext = schema;
+            return method;
+        };
         if (leftType instanceof ContextSchema) {
             result = resolver(leftType as ContextSchema);
             if (result)
@@ -141,12 +171,13 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
         }
         var method = ContextSchema.extensionMethods.find(p => p.methodContext.isAssignableFrom(leftType || context.schema) && p.name === token?.value);
         if (!method) return context!.schema;
+        if (method) { method.methodContext = leftType || context.schema; }
         var specificTypes = {} as any;
         let pidx = 0;
-        for (var garg of method.methodContext.genericArguments) {
-            specificTypes[garg.name] = context.schema.genericArguments[pidx++];
+        for (var garg of method.signeture.methodContext!.genericArguments) {
+            specificTypes[garg.name] = (leftType || context.schema).genericArguments[pidx++];
         }
-        return Object.assign(Object.create(ExtensionMethod.prototype), { caption: method.caption, methodContext: context.schema, signeture: method.signeture })
+        return Object.assign(Object.create(ExtensionMethod.prototype), { caption: method.caption, methodContext: method.methodContext, signeture: method.signeture })
             .makeGenericMethod(specificTypes);
     }
     visitLiteralPrimitive(ast: LiteralPrimitive, context: SemanticErrorContext): any {

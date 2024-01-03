@@ -37,6 +37,7 @@ export class Method {
 export class ExtensionMethod extends Method {
     constructor(name: string, caption: string, public methodContext: IType, signeture: MethodSigneture) {
         super(name, caption, signeture);
+        signeture.methodContext = methodContext as ContextSchema;
     }
     makeGenericMethod(specificTypes: { [key: string]: IType }) {
         return this.signeture.makeGenericType(specificTypes);
@@ -47,6 +48,7 @@ export class MethodSigneture implements IType {
     setSpecifitType(name: string, arg1: IType) {
         this.specificArguments[name] = arg1;
     }
+    methodContext: ContextSchema | undefined;
     constructor(
         public returnType: IType,
         public parameters: IType[],
@@ -56,7 +58,7 @@ export class MethodSigneture implements IType {
         return this.parameters.filter(p => p instanceof GenericType);
     }
     makeGenericType(specificTypes: { [key: string]: IType }) {
-        specificTypes = {...specificTypes,...this.specificArguments};
+        specificTypes = { ...specificTypes, ...this.specificArguments };
         var result = new MethodSigneture(
             this.returnType.makeGenericType(specificTypes),
             this.parameters.map(p => p.makeGenericType(specificTypes)),
@@ -65,7 +67,8 @@ export class MethodSigneture implements IType {
         return result;
     }
     isAssignableFrom(type: IType): unknown {
-        return type instanceof GenericType;
+        return type instanceof MethodSigneture &&
+            this.parameters.length === type.parameters.length;
     }
 
 }
@@ -137,7 +140,11 @@ export class ContextSchema implements IType {
         //     new MethodSigneture(new Enumerable(new GenericType(0)), [
         //         new MethodSigneture(PrimitiveTypes.bool, [new GenericType(0)])])),
     ];
-    constructor(public repository: ContextSchemaRepository, public name: string, public properties: Property[], public methods: Method[]) {
+    constructor(public repository: ContextSchemaRepository,
+        public name: string,
+        public properties: Property[],
+        public methods: Method[],
+        public constructors: Method[]) {
         for (const p of properties) {
             p.repository = repository;
         }
@@ -149,7 +156,7 @@ export class ContextSchema implements IType {
         return this;
     }
     isAssignableFrom(type: IType): unknown {
-        return  type instanceof ContextSchema && this.name === type.name;
+        return type instanceof ContextSchema && this.name === type.name;
     }
 
     addProperty(property: Property) {
@@ -157,7 +164,7 @@ export class ContextSchema implements IType {
         property.repository = this.repository;
     }
     create() {
-        return new ContextSchema(this.repository, "anonymous", [], []);
+        return new ContextSchema(this.repository, "anonymous", [], [], []);
     }
     clone(): IType {
         return this;

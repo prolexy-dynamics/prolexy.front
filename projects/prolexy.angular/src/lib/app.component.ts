@@ -21,27 +21,27 @@ export class AppComponent implements OnInit {
       { value: 'confirmed', text: 'confirmed' },
       { value: 'finalized', text: 'finalized' },
     ]);
-    var addressSchema = new ContextSchema(this.repository, "address", [
-      new Property('provine', 'province', PrimitiveTypes.string, undefined, false, new DataSource('http://localhost:5186/Province', 'id', 'name')),
-      new Property('city', 'city', PrimitiveTypes.string),
-      new Property('tell', 'tell', PrimitiveTypes.string),
-    ], []);
-    this.repository.register('orderState', states);
-    this.repository.register('address', addressSchema);
-    this.schema = new ContextSchema(this.repository, "order", [
-      new Property('provine', 'province', PrimitiveTypes.string, undefined, false, new DataSource('http://localhost:5186/Province', 'id', 'name')),
-      new Property('product', 'Product', PrimitiveTypes.string),
-      new Property('state', 'State', PrimitiveTypes.enum, 'orderState'),
-      new Property('customer', 'Customer', PrimitiveTypes.string),
-      new Property('price', 'Price', PrimitiveTypes.number),
-      new Property('discount', 'Discount', PrimitiveTypes.number),
-      new Property('vip', 'VIP', PrimitiveTypes.bool),
-      new Property('orderDate', 'Order Date', PrimitiveTypes.datetime),
-      new Property('productCategory', 'Product Category', PrimitiveTypes.string),
-      new Property('address', 'Address', new Enumerable(addressSchema)),
-    ], [
-      new Method("register", "Register", new MethodSigneture(PrimitiveTypes.bool, [PrimitiveTypes.string, PrimitiveTypes.number]))
-    ]);
+    // var addressSchema = new ContextSchema(this.repository, "address", [
+    //   new Property('provine', 'province', PrimitiveTypes.string, undefined, false, new DataSource('http://localhost:5186/Province', 'id', 'name')),
+    //   new Property('city', 'city', PrimitiveTypes.string),
+    //   new Property('tell', 'tell', PrimitiveTypes.string),
+    // ], []);
+    // this.repository.register('orderState', states);
+    // this.repository.register('address', addressSchema);
+    // this.schema = new ContextSchema(this.repository, "order", [
+    //   new Property('provine', 'province', PrimitiveTypes.string, undefined, false, new DataSource('http://localhost:5186/Province', 'id', 'name')),
+    //   new Property('product', 'Product', PrimitiveTypes.string),
+    //   new Property('state', 'State', PrimitiveTypes.enum, 'orderState'),
+    //   new Property('customer', 'Customer', PrimitiveTypes.string),
+    //   new Property('price', 'Price', PrimitiveTypes.number),
+    //   new Property('discount', 'Discount', PrimitiveTypes.number),
+    //   new Property('vip', 'VIP', PrimitiveTypes.bool),
+    //   new Property('orderDate', 'Order Date', PrimitiveTypes.datetime),
+    //   new Property('productCategory', 'Product Category', PrimitiveTypes.string),
+    //   new Property('address', 'Address', new Enumerable(addressSchema)),
+    // ], [
+    //   new Method("register", "Register", new MethodSigneture(PrimitiveTypes.bool, [PrimitiveTypes.string, PrimitiveTypes.number]))
+    // ]);
     this.repository.register('order', this.schema);
     this.tokens = [
     ];

@@ -63,6 +63,7 @@ export class ComplexTypeReferenceData implements ITypeData {
             result = new ContextSchema(context.repository,
                 this.name,
                 [],
+                [],
                 []);
             context.repository.register(this.name, result);
             var tmp = context.complexTypes.find(t => t.name === this.name)!.createType(context) as ContextSchema;
@@ -91,7 +92,8 @@ export class GenericTypeData implements ITypeData {
 export class ComplexTypeData implements ITypeData {
     constructor(public name: string,
         public properties: Array<PropertyData>,
-        public methods: Array<MethodData>) {
+        public methods: Array<MethodData>,
+        public constructors: Array<MethodData>) {
     }
     category: TypeCategory = TypeCategory.Complex;
 
@@ -99,7 +101,8 @@ export class ComplexTypeData implements ITypeData {
         var result = new ContextSchema(context.repository,
             this.name,
             this.properties.map(p => p.createProperty(context)),
-            this.methods.map(m => m.createMethod(context)));
+            this.methods.map(m => m.createMethod(context)),
+            this.constructors.map(m => m.createMethod(context)));
         context.repository.register(result.name, result);
         return result;
     }
@@ -109,6 +112,12 @@ export class ComplexTypeData implements ITypeData {
             .map((p: any) =>
                 new PropertyData(p.propertyName, convert(p.propertyType)));
         this.methods = (obj.methods || [])
+            .map((m: any) =>
+                new MethodData(m.name,
+                    convert(m.contextType),
+                    m.parameters.map((p: any) => new ParameterData(p.parameterName, convert(p.parameterType))),
+                    convert(m.returnType)));
+        this.constructors = (obj.constructors || [])
             .map((m: any) =>
                 new MethodData(m.name,
                     convert(m.contextType),

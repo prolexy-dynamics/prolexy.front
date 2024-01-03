@@ -207,9 +207,17 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
             return {
                 suggestions: context.allTypes.map(t => new Token(TokenType.identifier, t.name, PrimitiveTypes.bool, true))
             };
-        for (const element of ast.parameters) {
-            if (element.span.contains(context.typeAt))
-                return element.visit(this, context);
+        var type = context.allTypes.find(t => t.name == ast.typeIdentification.value);
+        var ctor = type?.constructors.filter(c => c.signeture.parameters.length >= ast.parameters.length)[0];
+        if (ctor) {
+            var idx = 0;
+            for (const element of ast.parameters) {
+                if (element.span.contains(context.typeAt)) {
+                    context.expectedType = ctor.signeture.parameters[idx];
+                    return element.visit(this, context);
+                }
+                idx++;
+            }
         }
         return this.expectedOperators({ suggestions: [], type: context.allTypes.find(t => t.name === ast.typeIdentification?.value) }, context);
     }
@@ -470,7 +478,7 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
                     if (method) {
                         var specificTypes = {} as any;
                         let pidx = 0;
-                        for (var garg of method.methodContext.genericArguments) {
+                        for (var garg of method.signeture.methodContext!.genericArguments) {
                             specificTypes[garg.name] = result.type!.genericArguments[pidx++];
                         }
                         result.type = method!.makeGenericMethod(specificTypes);
