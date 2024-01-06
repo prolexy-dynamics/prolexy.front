@@ -182,7 +182,11 @@ export class EnumTypeData implements ITypeData {
     category: TypeCategory = TypeCategory.Enum;
 
     createType(context: context): IType {
-        return new Enumeration(this.name, this.items.map(it => ({ value: it, text: it })));
+        var enumeration = context.repository.getByName(this.name);
+        if(enumeration) return enumeration;
+        enumeration =  new Enumeration(this.name, this.items.map(it => ({ value: it, text: it })));
+        context.repository.register(this.name, enumeration);
+        return enumeration;
     }
 }
 export class PrimitiveTypeData implements ITypeData {
