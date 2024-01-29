@@ -1,5 +1,5 @@
 import { Enumeration } from "./context-schema";
-import { ITypeData } from "./type-data";
+import { ITypeData, TypeCategory } from "./type-data";
 
 export class Token {
     static operator(op: Operations): Token {
@@ -57,6 +57,7 @@ export class Token {
 }
 
 export interface IType {
+    clone(): IType;
     isAssignableFrom(type: IType | undefined): unknown;
     get name(): string;
     get genericArguments(): Array<IType>;
@@ -65,6 +66,7 @@ export interface IType {
 export class PrimitiveTypes implements IType {
     constructor(public type: string, public extendedType?: PrimitiveTypes) { }
     get name(): string { return this.type; }
+    clone(): IType{ return this;}
     get genericArguments(): Array<IType> {
         return [];
     }

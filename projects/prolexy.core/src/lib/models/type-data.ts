@@ -1,4 +1,4 @@
-import { ContextSchema, ContextSchemaRepository, Enumerable, Enumeration, ExtensionMethod, GenericType, Method, MethodSigneture, Property } from "./context-schema";
+import { ContextSchema, ContextSchemaRepository, DataSource, Enumerable, Enumeration, ExtensionMethod, GenericType, Method, MethodParameter, MethodSigneture, Property } from "./context-schema";
 import { IType, PrimitiveTypes } from "./token";
 
 export enum TypeCategory {
@@ -27,12 +27,17 @@ function convert(obj: any): ITypeData {
     result.assign(obj);
     return result;
 }
-export function createTypeFromJson(repository: ContextSchemaRepository, json: any) {
+export class ProlexyContext{
+    businessObjectTypeData: ComplexTypeData = null!;
+    extensionMethods: Array<MethodSignatureData> = [];
+    complexDataTypes: Array<ComplexTypeData> = [];
+}
+export function createTypeFromJson(repository: ContextSchemaRepository, json: ProlexyContext) {
     var ctx = new context(repository,
         convert(json.businessObjectTypeData) as ComplexTypeData,
-        json.complexDataTypes.map((t: any) => convert(t)));
+        json.complexDataTypes.map((t: any) => convert(t) as ComplexTypeData));
     ContextSchema.extensionMethods = json.extensionMethods
-        .map((m: MethodSignatureData) => convert(m))
+        .map((m: MethodSignatureData) => convert(m) as MethodSignatureData)
         .map((m: MethodSignatureData) => new ExtensionMethod(
             m.name,
             m.name,
@@ -115,13 +120,19 @@ export class ComplexTypeData implements ITypeData {
             .map((m: any) =>
                 new MethodData(m.name,
                     convert(m.contextType),
-                    m.parameters.map((p: any) => new ParameterData(p.parameterName, convert(p.parameterType))),
+                    m.parameters.map((p: any) => new ParameterData(p.parameterName, convert(p.parameterType),
+                        p.dataSource
+                            ? new DataSource(p.dataSource.url, p.dataSource.valueSelector, p.dataSource.textSelector)
+                            : undefined)),
                     convert(m.returnType)));
         this.constructors = (obj.constructors || [])
             .map((m: any) =>
                 new MethodData(m.name,
                     convert(m.contextType),
-                    m.parameters.map((p: any) => new ParameterData(p.parameterName, convert(p.parameterType))),
+                    m.parameters.map((p: any) => new ParameterData(p.parameterName, convert(p.parameterType),
+                        p.dataSource
+                            ? new DataSource(p.dataSource.url, p.dataSource.valueSelector, p.dataSource.textSelector)
+                            : undefined)),
                     convert(m.returnType)));
     }
 }
@@ -143,14 +154,23 @@ export class MethodSignatureData implements ITypeData {
         Object.assign(this, obj);
         this.returnType = convert(obj.returnType);
         this.contextType = convert(obj.contextType);
-        this.parameters = obj.parameters.map((p: any) => new ParameterData(p.parameterName, convert(p.parameterType)));
+        this.parameters = obj.parameters.map((p: any) =>
+            new ParameterData(p.parameterName,
+                convert(p.parameterType),
+                p.dataSource
+                    ? new DataSource(p.dataSource.url, p.dataSource.valueSelector, p.dataSource.textSelector)
+                    : undefined));
     }
     category: TypeCategory = TypeCategory.Method;
 
     createType(context: context): IType {
         return new MethodSigneture(
             this.returnType.createType(context),
-            this.parameters.map(p => p.parameterType.createType(context)),
+            this.parameters.map(p =>
+                new MethodParameter(
+                    p.parameterName,
+                    p.parameterType.createType(context),
+                    p.dataSource)),
             this.name);
     }
 }
@@ -166,12 +186,16 @@ export class MethodData {
             this.methodName,
             new MethodSigneture(
                 this.returnType.createType(context),
-                this.parameters.map(p => p.parameterType.createType(context))))
+                this.parameters.map(p =>
+                    new MethodParameter(
+                        p.parameterName,
+                        p.parameterType.createType(context),
+                        p.dataSource))));
     }
 
 }
 class ParameterData {
-    constructor(public parameterName: string, public parameterType: ITypeData) { }
+    constructor(public parameterName: string, public parameterType: ITypeData, public dataSource?: DataSource) { }
 }
 export class EnumTypeData implements ITypeData {
     constructor(public name: string, public items: Array<string>) {
@@ -183,8 +207,8 @@ export class EnumTypeData implements ITypeData {
 
     createType(context: context): IType {
         var enumeration = context.repository.getByName(this.name);
-        if(enumeration) return enumeration;
-        enumeration =  new Enumeration(this.name, this.items.map(it => ({ value: it, text: it })));
+        if (enumeration) return enumeration;
+        enumeration = new Enumeration(this.name, this.items.map(it => ({ value: it, text: it })));
         context.repository.register(this.name, enumeration);
         return enumeration;
     }

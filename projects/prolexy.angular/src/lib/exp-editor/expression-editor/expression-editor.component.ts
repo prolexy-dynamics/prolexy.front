@@ -1,23 +1,82 @@
-import { Component, ElementRef, EventEmitter, HostListener, Input, OnInit, Output, QueryList, ViewChild, ViewChildren } from '@angular/core';
-import { Span, ContextSchema, EOF, Operations, PrimitiveTypes, Token, TokenType, AstVisitor, SyntaxErrorContext } from 'prolexy.core';
+import { Component, ElementRef, EventEmitter, Host, HostListener, Input, OnInit, Optional, Output, QueryList, SkipSelf, ViewChild, ViewChildren } from '@angular/core';
+import { AbstractControl, ControlContainer, ControlValueAccessor, NG_VALUE_ACCESSOR, ValidationErrors, ValidatorFn } from '@angular/forms';
+import { Span, ContextSchema, EOF, Operations, PrimitiveTypes, Token, TokenType, AstVisitor, SyntaxErrorContext, Lexer, IType } from 'prolexy.core';
 import { suggestNextTokensInStatementMode, suggestNextTokensInExpressionMode, Parser } from 'prolexy.core';
-import { SyntaxErrorVisitor, SemanticErrorAnalizer, SemanticErrorContext} from 'prolexy.core'
+import { SyntaxErrorVisitor, SemanticErrorAnalizer, SemanticErrorContext } from 'prolexy.core'
+import { CoderVisitor } from 'prolexy.core';
+
 @Component({
   selector: 'app-expression-editor',
   templateUrl: './expression-editor.component.html',
-  styleUrls: ['./expression-editor.component.sass']
+  styleUrls: ['./expression-editor.component.sass'],
+  providers: [{
+    provide: NG_VALUE_ACCESSOR,
+    useExisting: ExpressionEditorComponent,
+    multi: true
+  }]
 })
+export class ExpressionEditorComponent implements ControlValueAccessor, OnInit {
+  @Input() formControlName: string = '';
+  private control?: AbstractControl | null;
+  private lexer: Lexer = new Lexer();
+  constructor(
+    @Optional() @Host() @SkipSelf()
+    private controlContainer: ControlContainer
+  ) {
+  }
+  //#region "implementation of ControlValueAccessor"
+  onChange: any = () => { }
+  onTouch: any = () => { }
+  val = "" // this is the updated value that the class accesses
+  set value(val: string) {  // this value is updated by programmatic changes if( val !== undefined && this.val !== val){
+    if (val === undefined || this.val === val)
+      return;
+    this.showErrors();
+    this.val = val;
+    this.onChange(val);
+    this.onTouch(val);
+  }
+  // this method sets the value programmatically
+  writeValue(value: string) {
+    this.tokens = this.lexer.Tokenize(value);
+    this.setValueFromTokens();
+  }
+  private setValueFromTokens() {
+    var parser = new Parser(this.tokens);
+    var ast = this.editorMode === 'statement' ? parser.parseStatements() : parser.parseExpression();
+    var visitor = new CoderVisitor();
+    this.value = ast.visit(visitor, {}) + ' $';
+  }
 
-export class ExpressionEditorComponent implements OnInit {
+  // upon UI element value changes, this method gets triggered
+  registerOnChange(fn: any) {
+    this.onChange = fn
+  }
+  // upon touching the element, this method gets triggered
+  registerOnTouched(fn: any) {
+    this.onTouch = fn
+  }
+  //#endregion "implementation of ControlValueAccessor"
+
   ngOnInit(): void {
     if (this.tokens.indexOf(EOF) < 0)
       this.tokens.push(EOF);
+    if (this.controlContainer) {
+      if (this.formControlName) {
+        this.control = this.controlContainer.control?.get(this.formControlName);
+      } else {
+        console.warn('Missing FormControlName directive from host element of the component');
+      }
+    } else {
+      console.warn('Can\'t find parent FormGroup directive');
+    }
   }
   @ViewChildren('tokens') tokenElements: QueryList<ElementRef> = null!;
   @Input() schema: ContextSchema = null!;
   @Input() tokens: Array<Token> = [];
   @Input() beginScope: Array<string> = ['then', 'else'];
   @Input() endScope: Array<string> = ['else', 'end'];
+  @Input()
   @Output() $errors = new EventEmitter<Array<{ span: Span, message: string }>>();;
   errors = new Array<{ span: Span, message: string }>();
   errorMessages = new Array<{ span: Span, message: string }>();
@@ -115,6 +174,7 @@ export class ExpressionEditorComponent implements OnInit {
       this.showSuggestion(this.suggestionOpened + 1, null);
     }
     this.showErrors();
+    this.setValueFromTokens();
   }
   remove(idx: number) {
     if (this.tokens[idx] === EOF) return;
@@ -123,6 +183,7 @@ export class ExpressionEditorComponent implements OnInit {
     setTimeout(() => {
       this.tokenElements.get(idx)?.nativeElement.focus();
       this.showErrors();
+      this.setValueFromTokens();
     }, 10);
   }
   showErrors() {
@@ -187,4 +248,23 @@ export class ExpressionEditorComponent implements OnInit {
 }
 function onlyUnique(value: any, index: any, array: any): boolean {
   return array.indexOf(value) === index;
+}
+export function createExpressionValidator(schema: ContextSchema, expectedType: IType): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const value = control.value as string;
+    var lexer = new Lexer();
+    var tokens = lexer.Tokenize(value);
+    var parser = new Parser(tokens);
+    var ast = parser.parseExpression();
+    var visitor = new SyntaxErrorVisitor();
+    var context = new SemanticErrorContext(schema);
+    context.expectedType.push(expectedType);
+    if (ast.span.end < tokens.length - 2) // one for $ and one for starting index
+      context.errors.push({ span: new Span(ast.span.end, ast.span.end), message: 'unexpected token' });
+    ast.visit(visitor as any, context);
+    var visitor1 = new SemanticErrorAnalizer();
+    var actualType = ast.visit(visitor1 as any, context);
+
+    return (context.errors?.length || actualType !== expectedType) ? { invalidReturnType: true } : null;
+  }
 }

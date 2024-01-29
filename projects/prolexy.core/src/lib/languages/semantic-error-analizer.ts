@@ -1,4 +1,4 @@
-import { ContextSchema, Enumeration, ExpType, ExtensionMethod, MethodSigneture, Property } from '../models/context-schema';
+import { ContextSchema, Enumerable, Enumeration, ExpType, ExtensionMethod, MethodSigneture, Property } from '../models/context-schema';
 import { dateOperations, IType, KeyWords, logicalOperations, numericOperations, Operations, PrimitiveTypes, relationalOperations, stringOperations, Token, TokenType } from '../models/token';
 import { Stack } from '../services/Stack';
 import { AccessMember, AnonymousMethod, Assignment, Ast, AstVisitor, Binary, Call, CompositionExpected, Declaration, ExpectedKeywords, ExpectedTokenTypes, IfStatement, ImplicitAccessMember, Instantiation, LiteralPrimitive, Span } from './ast';
@@ -96,25 +96,25 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
         var i = 0;
         for (let arg of args) {
             if (arg instanceof AnonymousMethod) {
-                var methodParameters = (signature.parameters[i] as MethodSigneture).parameters;
+                var methodParameters = (signature.parameters[i].parameterType as MethodSigneture).parameters;
                 var params = (arg as AnonymousMethod).parameters;
                 var schem = (context.schema as ContextSchema).create();
                 let idx = 0;
                 for (const p of params) {
-                    schem.addProperty(new Property(p.value!, p.value!, methodParameters[idx]));
+                    schem.addProperty(new Property(p.value!, p.value!, methodParameters[idx].parameterType));
                     idx++;
                 }
                 context.stackCall.push(schem);
             }
-            context.expectedType.push(signature.parameters[i]);
+            context.expectedType.push(signature.parameters[i]?.parameterType);
             context.leftType = signature.methodContext;
             var parameterType = arg.visit(this, context);
             context.expectedType.pop();
-            if (signature.parameters[i]?.isAssignableFrom(parameterType) === false)
-                context.errors.push({ span: args[i].span, message: `Parameter mistmatch. expected type is: ${signature.parameters[i].name}` });
+            if (signature.parameters[i]?.parameterType.isAssignableFrom(parameterType) === false)
+                context.errors.push({ span: args[i].span, message: `Parameter mistmatch. expected type is: ${signature.parameters[i].parameterType.name}` });
 
             if (parameterType && signature.parameters[i]) {
-                for (const iterator of signature.parameters[i].genericArguments) {
+                for (const iterator of signature.parameters[i].parameterType.genericArguments) {
                     signature.setSpecifitType(iterator.name, parameterType);
                     signature = signature?.makeGenericType({});
                 }
@@ -171,14 +171,17 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
         }
         var method = ContextSchema.extensionMethods.find(p => p.methodContext.isAssignableFrom(leftType || context.schema) && p.name === token?.value);
         if (!method) return context!.schema;
-        if (method) { method.methodContext = leftType || context.schema; }
+        if (method) {
+            method = method.clone();
+            method.methodContext = leftType || context.schema;
+        }
         var specificTypes = {} as any;
         let pidx = 0;
         for (var garg of method.signeture.methodContext!.genericArguments) {
             specificTypes[garg.name] = (leftType || context.schema).genericArguments[pidx++];
         }
-        return Object.assign(Object.create(ExtensionMethod.prototype), { caption: method.caption, methodContext: method.methodContext, signeture: method.signeture })
-            .makeGenericMethod(specificTypes);
+
+        return method.makeGenericMethod(specificTypes);
     }
     visitLiteralPrimitive(ast: LiteralPrimitive, context: SemanticErrorContext): any {
         return ast.token.type === PrimitiveTypes.enum

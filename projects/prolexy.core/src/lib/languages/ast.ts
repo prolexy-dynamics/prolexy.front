@@ -1,9 +1,10 @@
+import { MethodParameter, DataSource } from "../models/context-schema";
 import { GenericType } from "../models/context-schema";
 import { ContextSchema, Enumerable, Enumeration, ExpType, ExtensionMethod, Method, MethodSigneture, Property } from "../models/context-schema";
 import { OperationOrders } from "../models/operation-orders";
 import { binaryoperations, dateOperations, IType, KeyWords, logicalOperations, numericOperations, Operations, PrimitiveTypes, relationalOperations, stringOperations, Token, TokenType } from "../models/token";
 import { Stack } from "../services/Stack";
-import Promise from "ts-promise";
+
 
 export class Span {
     contains(index: number) {
@@ -183,6 +184,7 @@ export interface AstVisitor<T> {
 export class TypeDetectorContext {
     leftType: ExpType = null!;
     lastselectedProperty?: Property;
+    deeperParameter?: MethodParameter;
     constructor(public schema: ContextSchema,
         public typeAt: number,
         public expectedType: ExpType | undefined,
@@ -213,7 +215,7 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
             var idx = 0;
             for (const element of ast.parameters) {
                 if (element.span.contains(context.typeAt)) {
-                    context.expectedType = ctor.signeture.parameters[idx];
+                    context.expectedType = ctor.signeture.parameters[idx].parameterType;
                     return element.visit(this, context);
                 }
                 idx++;
@@ -230,15 +232,15 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
     visitExpectedKeywords(ast: ExpectedKeywords, context: TypeDetectorContext) {
         return { suggestions: ast.keywords.map(k => new Token(TokenType.keyword, k)) }
     }
-    getSuggestionFromDataSource(property: Property): Promise<Array<Token>> {
-        var ds = property.dataSource!;
+    getSuggestionFromDataSource(dataSource: DataSource, primitiveType: PrimitiveTypes): Promise<Array<Token>> {
+        var ds = dataSource;
         return new Promise(e => {
             var res = fetch(ds.url, { method: 'get' });
             res.then(res => res.json().then(data => {
                 var tokens = new Array<Token>();
                 for (const item of data) {
                     tokens.push(new Token(TokenType.const, `\${${item[ds.valueSelector]}:${item[ds.textSelector]}:string}`,
-                        PrimitiveTypes.selective(property.primitiveType as PrimitiveTypes)))
+                        PrimitiveTypes.selective(primitiveType)))
                 }
                 e(tokens);
             }))
@@ -251,17 +253,16 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
             ? this.suggestIdentifier(context, undefined, context.expectedType)
             : { suggestions: [] as Array<Token>, suggestionLoader: null as (Promise<Array<Token>> | null) };
         if (ast.tokenTypes.indexOf(TokenType.const) > -1) {
-            if (context.expectedType === PrimitiveTypes.number) {
-                if (context.lastselectedProperty?.dataSource?.url)
-                    result.suggestionLoader = this.getSuggestionFromDataSource(context.lastselectedProperty);
+            if (context.expectedType === PrimitiveTypes.number ||
+                context.expectedType === PrimitiveTypes.string) {
+                if (context.lastselectedProperty?.dataSource?.url || context.deeperParameter?.dataSource?.url)
+                    result.suggestionLoader =
+                        this.getSuggestionFromDataSource((context.lastselectedProperty?.dataSource || context.deeperParameter?.dataSource)!,
+                            context.expectedType as PrimitiveTypes);
+                else if (context.expectedType === PrimitiveTypes.string)
+                    result.suggestions.push(new Token(TokenType.const, "", PrimitiveTypes.string));
                 else
-                    result.suggestions.push(new Token(TokenType.const, undefined, PrimitiveTypes.number));
-            }
-            else if (context.expectedType === PrimitiveTypes.string) {
-                if (context.lastselectedProperty?.dataSource?.url)
-                    result.suggestionLoader = this.getSuggestionFromDataSource(context.lastselectedProperty);
-                else
-                    result.suggestions.push(new Token(TokenType.const, undefined, PrimitiveTypes.string));
+                    result.suggestions.push(new Token(TokenType.const, "0", PrimitiveTypes.number));
             }
             else if (context.expectedType === PrimitiveTypes.bool) {
                 result.suggestions.push(new Token(TokenType.keyword, "true", PrimitiveTypes.bool));
@@ -398,10 +399,12 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
         var method = ast.method.visit(this, context) as TypeDetectorResult;
         var argIndex = 0, signature: MethodSigneture | null = null;
         if (method?.type instanceof MethodSigneture) {
-            signature = (method.type as MethodSigneture);
+            signature = method.type.clone();
         }
+        var result = null;
         for (let i = 0; signature != null && i < signature.parameters.length; i++) {
             context.leftType = null!;
+            context.deeperParameter = signature.parameters[i];
             var arg = ast.args[i];
             if (arg.span.contains(context.typeAt)) {
                 if (arg instanceof AnonymousMethod) {
@@ -409,31 +412,36 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
                     var schem = context.schema.create();
                     let idx = 0;
                     for (const p of params) {
-                        schem.addProperty(new Property(p.value!, p.value!, (signature.parameters[i] as MethodSigneture).parameters[idx]));
+                        schem.addProperty(new Property(p.value!, p.value!, (signature.parameters[i].parameterType as MethodSigneture).parameters[idx].parameterType));
                         idx++;
                     }
                     context.stackCall.push(schem);
                 }
 
-                context.expectedType = signature.parameters[argIndex];
+                context.expectedType = signature.parameters[argIndex].parameterType;
                 if (arg.span.start !== arg.span.end && arg.span.end === context.typeAt) {
-                    var result = arg.visit(this, context);
-                    if (!signature || argIndex < signature.parameters.length - 1) result.suggestions.push(new Token(TokenType.operation, Operations.comma));
-                    return result;
+                    result = arg.visit(this, context);
+                    if (!signature || argIndex < signature.parameters.length - 1)
+                        result.suggestions.push(new Token(TokenType.operation, Operations.comma));
                 }
-                return arg.visit(this, context);
+                else
+                    result = arg.visit(this, context);
             }
-            else if (signature.parameters[i].genericArguments.length) {
+            else if (signature.parameters[i].parameterType.genericArguments.length) {
                 var argType = arg.visit(this, context).type;
                 if (argType) {
-                    for (const iterator of signature.parameters[i].genericArguments) {
+                    for (const iterator of signature.parameters[i].parameterType.genericArguments) {
                         signature.setSpecifitType(iterator.name, argType);
                         signature = signature?.makeGenericType({});
                     }
                 }
             }
             argIndex++;
+            if (result)
+                break;
         }
+        context.deeperParameter = undefined;
+        if (result) return result;
         if (!context.expectedType)
             return { suggestions: [new Token(TokenType.keyword, KeyWords.andThen)] };
         return this.expectedOperators({ type: signature?.returnType, suggestions: [] }, context);
@@ -476,6 +484,7 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
                             .filter(m => m.name === ast.token.value)
                             .map(m => new ExtensionMethod(m.name, m.name, result.type as ContextSchema, m.signeture))[0];
                     if (method) {
+                        method = method.clone();
                         var specificTypes = {} as any;
                         let pidx = 0;
                         for (var garg of method.signeture.methodContext!.genericArguments) {
