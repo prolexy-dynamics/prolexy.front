@@ -1,9 +1,10 @@
 import { Component, ElementRef, EventEmitter, Host, HostListener, Input, OnInit, Optional, Output, QueryList, SkipSelf, ViewChild, ViewChildren } from '@angular/core';
 import { AbstractControl, ControlContainer, ControlValueAccessor, NG_VALUE_ACCESSOR, ValidationErrors, ValidatorFn } from '@angular/forms';
-import { Span, ContextSchema, EOF, Operations, PrimitiveTypes, Token, TokenType, AstVisitor, SyntaxErrorContext, Lexer, IType } from 'prolexy.core';
+import { Span, ContextSchema, EOF, Operations, PrimitiveTypes, Token, TokenType, AstVisitor, SyntaxErrorContext, Lexer, IType, ProlexyContext, createTypeFromJson } from 'prolexy.core';
 import { suggestNextTokensInStatementMode, suggestNextTokensInExpressionMode, Parser } from 'prolexy.core';
 import { SyntaxErrorVisitor, SemanticErrorAnalizer, SemanticErrorContext } from 'prolexy.core'
 import { CoderVisitor } from 'prolexy.core';
+import { ContextSchemaRepositoryService } from '../../shared/context-schema-repository.service';
 
 @Component({
   selector: 'app-expression-editor',
@@ -21,7 +22,8 @@ export class ExpressionEditorComponent implements ControlValueAccessor, OnInit {
   private lexer: Lexer = new Lexer();
   constructor(
     @Optional() @Host() @SkipSelf()
-    private controlContainer: ControlContainer
+    private controlContainer: ControlContainer,
+    private repository: ContextSchemaRepositoryService
   ) {
   }
   //#region "implementation of ControlValueAccessor"
@@ -72,6 +74,14 @@ export class ExpressionEditorComponent implements ControlValueAccessor, OnInit {
     }
   }
   @ViewChildren('tokens') tokenElements: QueryList<ElementRef> = null!;
+  @Input() set prolexyContext(val: ProlexyContext){
+    if(!val.businessObjectTypeData) return;
+    var context = new ProlexyContext();
+    Object.assign(context, val);
+    var data = createTypeFromJson(this.repository, context);
+
+    Object.assign(this.schema, data.businessObjectTypeData.createType(data));
+  }
   @Input() schema: ContextSchema = null!;
   @Input() tokens: Array<Token> = [];
   @Input() beginScope: Array<string> = ['then', 'else'];
