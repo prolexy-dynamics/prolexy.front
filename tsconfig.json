@@ -17,10 +17,10 @@
     "importHelpers": true,
     "paths": {
       "prolexy.angular": [
-        "./dist/prolexy.angular"
+        "./projects/prolexy.angular/src/public-api.ts"
       ],
       "prolexy.core": [
-        "./dist/prolexy.core"
+        "./projects/prolexy.core/src/public-api.ts"
       ]
     },
     "target": "ES2022",
