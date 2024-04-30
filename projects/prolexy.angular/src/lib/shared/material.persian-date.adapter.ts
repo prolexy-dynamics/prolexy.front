@@ -1,5 +1,5 @@
 import { DateAdapter } from "@angular/material/core";
-import * as jalaliMoment from "jalali-moment";
+import moment from "jalali-moment";
 
 export const PERSIAN_DATE_FORMATS = {
   parse: {
@@ -13,26 +13,26 @@ export const PERSIAN_DATE_FORMATS = {
   }
 };
 
-export class MaterialPersianDateAdapter extends DateAdapter<jalaliMoment.Moment> {
+export class MaterialPersianDateAdapter extends DateAdapter<moment.Moment> {
 
   constructor() {
     super();
     super.setLocale("fa");
   }
 
-  getYear(date: jalaliMoment.Moment): number {
+  getYear(date: moment.Moment): number {
     return this.clone(date).jYear();
   }
 
-  getMonth(date: jalaliMoment.Moment): number {
+  getMonth(date: moment.Moment): number {
     return this.clone(date).jMonth();
   }
 
-  getDate(date: jalaliMoment.Moment): number {
+  getDate(date: moment.Moment): number {
     return this.clone(date).jDate();
   }
 
-  getDayOfWeek(date: jalaliMoment.Moment): number {
+  getDayOfWeek(date: moment.Moment): number {
     return this.clone(date).day();
   }
 
@@ -40,9 +40,9 @@ export class MaterialPersianDateAdapter extends DateAdapter<jalaliMoment.Moment>
     switch (style) {
       case "long":
       case "short":
-        return jalaliMoment.localeData("fa").jMonths().slice(0);
+        return moment.localeData("fa").jMonths().slice(0);
       case "narrow":
-        return jalaliMoment.localeData("fa").jMonthsShort().slice(0);
+        return moment.localeData("fa").jMonthsShort().slice(0);
     }
   }
 
@@ -57,31 +57,31 @@ export class MaterialPersianDateAdapter extends DateAdapter<jalaliMoment.Moment>
   getDayOfWeekNames(style: "long" | "short" | "narrow"): string[] {
     switch (style) {
       case "long":
-        return jalaliMoment.localeData("fa").weekdays().slice(0);
+        return moment.localeData("fa").weekdays().slice(0);
       case "short":
-        return jalaliMoment.localeData("fa").weekdaysShort().slice(0);
+        return moment.localeData("fa").weekdaysShort().slice(0);
       case "narrow":
         return ["ی", "د", "س", "چ", "پ", "ج", "ش"];
     }
   }
 
-  getYearName(date: jalaliMoment.Moment): string {
+  getYearName(date: moment.Moment): string {
     return this.clone(date).jYear().toString();
   }
 
   getFirstDayOfWeek(): number {
-    return jalaliMoment.localeData("fa").firstDayOfWeek();
+    return moment.localeData("fa").firstDayOfWeek();
   }
 
-  getNumDaysInMonth(date: jalaliMoment.Moment): number {
+  getNumDaysInMonth(date: moment.Moment): number {
     return this.clone(date).jDaysInMonth();
   }
 
-  clone(date: jalaliMoment.Moment): jalaliMoment.Moment {
+  clone(date: moment.Moment): moment.Moment {
     return date.clone().locale("fa");
   }
 
-  createDate(year: number, month: number, date: number): jalaliMoment.Moment {
+  createDate(year: number, month: number, date: number): moment.Moment {
     if (month < 0 || month > 11) {
       throw Error(
         `Invalid month index "${month}". Month index has to be between 0 and 11.`
@@ -90,8 +90,7 @@ export class MaterialPersianDateAdapter extends DateAdapter<jalaliMoment.Moment>
     if (date < 1) {
       throw Error(`Invalid date "${date}". Date has to be greater than 0.`);
     }
-    const result = jalaliMoment()
-      .jYear(year).jMonth(month).jDate(date)
+    const result = moment().jYear(year).jMonth(month).jDate(date)
       .hours(0).minutes(0).seconds(0).milliseconds(0)
       .locale("fa");
 
@@ -104,18 +103,18 @@ export class MaterialPersianDateAdapter extends DateAdapter<jalaliMoment.Moment>
     return result;
   }
 
-  today(): jalaliMoment.Moment {
-    return jalaliMoment().locale("fa");
+  today(): moment.Moment {
+    return moment().locale("fa");
   }
 
-  parse(value: any, parseFormat: string | string[]): jalaliMoment.Moment | null {
+  parse(value: any, parseFormat: string | string[]): moment.Moment | null {
     if (value && typeof value === "string") {
-      return jalaliMoment(value, parseFormat, "fa");
+      return moment(value, parseFormat, "fa");
     }
-    return value ? jalaliMoment(value).locale("fa") : null;
+    return value ? moment(value).locale("fa") : null;
   }
 
-  format(date: jalaliMoment.Moment, displayFormat: string): string {
+  format(date: moment.Moment, displayFormat: string): string {
     date = this.clone(date);
     if (!this.isValid(date)) {
       throw Error("JalaliMomentDateAdapter: Cannot format invalid date.");
@@ -123,44 +122,44 @@ export class MaterialPersianDateAdapter extends DateAdapter<jalaliMoment.Moment>
     return date.format(displayFormat);
   }
 
-  addCalendarYears(date: jalaliMoment.Moment, years: number): jalaliMoment.Moment {
+  addCalendarYears(date: moment.Moment, years: number): moment.Moment {
     return this.clone(date).add(years, "jYear");
   }
 
-  addCalendarMonths(date: jalaliMoment.Moment, months: number): jalaliMoment.Moment {
+  addCalendarMonths(date: moment.Moment, months: number): moment.Moment {
     return this.clone(date).add(months, "jmonth");
   }
 
-  addCalendarDays(date: jalaliMoment.Moment, days: number): jalaliMoment.Moment {
+  addCalendarDays(date: moment.Moment, days: number): moment.Moment {
     return this.clone(date).add(days, "jDay");
   }
 
-  toIso8601(date: jalaliMoment.Moment): string {
+  toIso8601(date: moment.Moment): string {
     return this.clone(date).format();
   }
 
   isDateInstance(obj: any): boolean {
-    return jalaliMoment.isMoment(obj);
+    return moment.isMoment(obj);
   }
 
-  isValid(date: jalaliMoment.Moment): boolean {
+  isValid(date: moment.Moment): boolean {
     return this.clone(date).isValid();
   }
 
-  invalid(): jalaliMoment.Moment {
-    return jalaliMoment.invalid();
+  invalid(): moment.Moment {
+    return moment.invalid();
   }
 
-  override deserialize(value: any): jalaliMoment.Moment | null {
+  override deserialize(value: any): moment.Moment | null {
     let date;
     if (value instanceof Date) {
-      date = jalaliMoment(value);
+      date = moment(value);
     }
     if (typeof value === "string") {
       if (!value) {
         return null;
       }
-      date = jalaliMoment(value).locale("fa");
+      date = moment(value).locale("fa");
     }
     if (date && this.isValid(date)) {
       return date;

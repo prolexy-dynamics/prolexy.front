@@ -14,19 +14,19 @@
                 (click)="showSuggestion(i, $event)" (focus)="showSuggestion(i, $event)" (keydown)="filter($event)"
                 #tokens (mouseenter)="showErrorMessages (i)" cTooltipPlacement="top">
                 <ng-container *ngIf="t.type === PrimitiveTypes.string">
-                    <app-expression-string-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'">>
+                    <app-expression-string-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'"  (valueChange)="updateValue(true)">
                     </app-expression-string-editor>
                 </ng-container>
                 <ng-container *ngIf="t.declaration">
-                    <app-expression-declaration-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'">>
+                    <app-expression-declaration-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'">
                     </app-expression-declaration-editor>
                 </ng-container>
                 <ng-container *ngIf="t.type === PrimitiveTypes.number">
-                    <app-expression-number-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'">>
+                    <app-expression-number-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'" (valueChange)="updateValue(true)">
                     </app-expression-number-editor>
                 </ng-container>
                 <ng-container *ngIf="t.type === PrimitiveTypes.datetime">
-                    <app-expression-datetime-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'">
+                    <app-expression-datetime-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'" (valueChange)="updateValue(true)">
                     </app-expression-datetime-editor>
                 </ng-container>
                 <ng-container *ngIf="isEnumeration(t)">

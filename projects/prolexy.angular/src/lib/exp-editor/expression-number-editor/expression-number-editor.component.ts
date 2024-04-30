@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild } from '@angular/core';
 import { Token, EOF } from 'prolexy.core';
 
 @Component({
@@ -16,10 +16,19 @@ export class ExpressionNumberEditorComponent {
   }
   @Input()
   token: Token = EOF;
-  value: number = 0;
+  private _value: number = 0;
+  @Output() valueChange = new EventEmitter();
+  @Input() get value(): number {
+    return this._value;
+  }
+  set value(val: number) {  // this value is updated by programmatic changes if( val !== undefined && this.val !== val){
+    if (val === this._value) return;
+    this._value = val;
+    this._tmp = val.toString();
+  }
   setValue(evt: any) {
     if (!isNaN(+evt.target.textContent))
-      this.value = +evt.target.textContent;
+      this._value = +evt.target.textContent;
     this._tmp = evt.target.textContent;
   }
   private _element?: ElementRef;
@@ -39,6 +48,7 @@ export class ExpressionNumberEditorComponent {
   switchToView() {
     this._mode = 'view';
     this.token.value = this.value.toString();
+    this.valueChange.emit(this._value);
   }
   _tmp: string | undefined;
   handleDigit(e: any) {

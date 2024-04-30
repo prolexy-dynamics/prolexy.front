@@ -1,53 +1,79 @@
-import { Component, ElementRef, EventEmitter, Host, HostListener, Input, OnInit, Optional, Output, QueryList, SkipSelf, ViewChild, ViewChildren } from '@angular/core';
-import { AbstractControl, ControlContainer, ControlValueAccessor, NG_VALUE_ACCESSOR, ValidationErrors, ValidatorFn } from '@angular/forms';
-import { Span, ContextSchema, EOF, Operations, PrimitiveTypes, Token, TokenType, AstVisitor, SyntaxErrorContext, Lexer, IType, ProlexyContext, createTypeFromJson } from 'prolexy.core';
+import { Component, Directive, ElementRef, EventEmitter, Host, HostListener, Input, OnDestroy, OnInit, Optional, Output, QueryList, SkipSelf, ViewChild, ViewChildren, forwardRef } from '@angular/core';
+import { AbstractControl, ControlContainer, ControlValueAccessor, NG_VALIDATORS, NG_VALUE_ACCESSOR, ValidationErrors, Validator, ValidatorFn } from '@angular/forms';
+import { Span, ContextSchema, EOF, Operations, PrimitiveTypes, Token, TokenType, AstVisitor, SyntaxErrorContext, Lexer, IType, ProlexyContext, createTypeFromJson, ITypeData, context } from 'prolexy.core';
 import { suggestNextTokensInStatementMode, suggestNextTokensInExpressionMode, Parser } from 'prolexy.core';
 import { SyntaxErrorVisitor, SemanticErrorAnalizer, SemanticErrorContext } from 'prolexy.core'
 import { CoderVisitor } from 'prolexy.core';
-import { ContextSchemaRepositoryService } from '../../shared/context-schema-repository.service';
 
 @Component({
   selector: 'app-expression-editor',
   templateUrl: './expression-editor.component.html',
   styleUrls: ['./expression-editor.component.sass'],
-  providers: [{
-    provide: NG_VALUE_ACCESSOR,
-    useExisting: ExpressionEditorComponent,
-    multi: true
-  }]
+  providers: [
+    { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => ExpressionEditorComponent), multi: true },
+    { provide: NG_VALIDATORS, useExisting: forwardRef(() => ExpressionEditorComponent), multi: true }
+  ]
 })
-export class ExpressionEditorComponent implements ControlValueAccessor, OnInit {
-  @Input() formControlName: string = '';
-  private control?: AbstractControl | null;
+export class ExpressionEditorComponent implements ControlValueAccessor, OnInit, Validator, OnDestroy {
   private lexer: Lexer = new Lexer();
-  constructor(
-    @Optional() @Host() @SkipSelf()
-    private controlContainer: ControlContainer,
-    private repository: ContextSchemaRepositoryService
-  ) {
+
+  private _expectedType: IType | undefined;
+  @Input() get expectedType(): IType | undefined {
+    return this._expectedType;
+  }
+  set expectedType(value: IType | undefined) {
+    if (value !== this._expectedType) {
+      this._expectedType = value;
+      this.updateValue();
+      return;
+    }
+    this._expectedType = value;
   }
   //#region "implementation of ControlValueAccessor"
   onChange: any = () => { }
   onTouch: any = () => { }
   val = "" // this is the updated value that the class accesses
+  @Output() valueChange = new EventEmitter();
+  @Input() get value() {
+    return this.val;
+  }
   set value(val: string) {  // this value is updated by programmatic changes if( val !== undefined && this.val !== val){
-    if (val === undefined || this.val === val)
-      return;
-    this.showErrors();
-    this.val = val;
-    this.onChange(val);
-    this.onTouch(val);
+    if (val === this.val) return;
+    this.setNewValue(val);
   }
   // this method sets the value programmatically
   writeValue(value: string) {
-    this.tokens = this.lexer.Tokenize(value);
-    this.setValueFromTokens();
+    if (value === this.val) return;
+    this.setNewValue(value);
   }
+
   private setValueFromTokens() {
     var parser = new Parser(this.tokens);
     var ast = this.editorMode === 'statement' ? parser.parseStatements() : parser.parseExpression();
     var visitor = new CoderVisitor();
-    this.value = ast.visit(visitor, {}) + ' $';
+    this.val = ast.visit(visitor, {}) + ' $';
+    this.updateValue();
+  }
+
+  updateValue(setFromToken: boolean = false) {
+    if (setFromToken)
+      this.setValueFromTokens();
+    this.onChange(this.val);
+    this.onTouch(this.val);
+    this.valueChange.emit(this.val);
+  }
+
+  private setNewValue(val: string) {
+    if (!val || this.val === val)
+      return;
+    this.tokens.splice(0, this.tokens.length);
+    for (var t of this.lexer.Tokenize(val))
+      this.tokens.push(t);
+
+    this.showErrors();
+    this.val = val + (val.indexOf('$') > -1 ? '' : ' $');
+    // this.onChange(val);
+    // this.onTouch(val);
   }
 
   // upon UI element value changes, this method gets triggered
@@ -60,28 +86,21 @@ export class ExpressionEditorComponent implements ControlValueAccessor, OnInit {
   }
   //#endregion "implementation of ControlValueAccessor"
 
+  //#region "implementation of Validator and OnDestroy"
+
+  validate(control: AbstractControl): { [key: string]: any } | null {
+    if (control.valid && this.editorMode === 'expression' && this.expectedType)
+      return createExpressionValidator(this.schema, this.expectedType)(control);
+    return null;
+  }
+  ngOnDestroy(): void {
+    this.validate = () => null;
+  }
+  //#endregion ""
   ngOnInit(): void {
-    if (this.tokens.indexOf(EOF) < 0)
-      this.tokens.push(EOF);
-    if (this.controlContainer) {
-      if (this.formControlName) {
-        this.control = this.controlContainer.control?.get(this.formControlName);
-      } else {
-        console.warn('Missing FormControlName directive from host element of the component');
-      }
-    } else {
-      console.warn('Can\'t find parent FormGroup directive');
-    }
   }
   @ViewChildren('tokens') tokenElements: QueryList<ElementRef> = null!;
-  @Input() set prolexyContext(val: ProlexyContext){
-    if(!val.businessObjectTypeData) return;
-    var context = new ProlexyContext();
-    Object.assign(context, val);
-    var data = createTypeFromJson(this.repository, context);
 
-    Object.assign(this.schema, data.businessObjectTypeData.createType(data));
-  }
   @Input() schema: ContextSchema = null!;
   @Input() tokens: Array<Token> = [];
   @Input() beginScope: Array<string> = ['then', 'else'];

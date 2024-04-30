@@ -12,6 +12,8 @@ import { ExpressionEditorComponent } from './exp-editor/expression-editor/expres
 import { ExpressionEnumerationEditorComponent } from './exp-editor/expression-enumeration-editor/expression-enumeration-editor.component';
 import { ExpressionNumberEditorComponent } from './exp-editor/expression-number-editor/expression-number-editor.component';
 import { ExpressionStringEditorComponent } from './exp-editor/expression-string-editor/expression-string-editor.component';
+import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
+import { MaterialPersianDateAdapter, PERSIAN_DATE_FORMATS } from './shared/material.persian-date.adapter';
 
 @NgModule({
   declarations: [
@@ -38,6 +40,8 @@ import { ExpressionStringEditorComponent } from './exp-editor/expression-string-
       provide: LocationStrategy,
       useClass: HashLocationStrategy,
     },
+    {provide: DateAdapter, useClass: MaterialPersianDateAdapter, deps: [MAT_DATE_LOCALE]},
+    {provide: MAT_DATE_FORMATS, useValue: PERSIAN_DATE_FORMATS},
     Title
   ],
   bootstrap: [AppComponent],

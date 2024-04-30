@@ -6,7 +6,15 @@
     "declaration": true,
     "declarationMap": true,
     "inlineSources": true,
-    "types": []
+    "types": [],
+    "paths": {
+      "prolexy.angular": [
+        "./projects/prolexy.angular/src/public-api.ts"
+      ],
+      "prolexy.core": [
+        "./projects/prolexy.core/src/public-api.ts"
+      ]
+    },
   },
   "exclude": [
     "**/*.spec.ts"

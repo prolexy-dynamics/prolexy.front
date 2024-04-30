@@ -1,4 +1,4 @@
-import { Component, ElementRef, Input, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import * as moment from 'jalali-moment';
 import { EOF, Token } from 'prolexy.core';
 
@@ -9,6 +9,7 @@ import { EOF, Token } from 'prolexy.core';
 })
 export class ExpressionDatetimeEditorComponent {
   _mode: ('edit' | 'view') = 'view';
+  @Output() valueChange = new EventEmitter();
   @Input()
   get mode(): ('edit' | 'view') {
     return this._mode;
@@ -20,8 +21,9 @@ export class ExpressionDatetimeEditorComponent {
     // else
     //   this.value = this.token.value ? moment.from(this.token.value, 'en', 'YYYY/MM/DD') as any : new Date;
   }
-  text() {
-    return this.value.format ? this.value.locale('fa').format('YYYY/MM/DD') : this.value.toLocaleDateString('fa');
+  text='';
+  setText() {
+    this.text= this.value.format ? this.value.locale('fa').format('YYYY/MM/DD') : this.value.toLocaleDateString('fa');
   }
   @Input()
   token: Token = EOF;
@@ -31,6 +33,8 @@ export class ExpressionDatetimeEditorComponent {
   }
   public set value(val: any) {
     this.token.value = val.format ? val.locale('en').format('YYYY/MM/DD') : val.toLocaleDateString();
+    this.valueChange.emit(this.token.value);
+    this.setText();
     this._value=null;
   }
 
@@ -39,4 +43,7 @@ export class ExpressionDatetimeEditorComponent {
     v?.open();
   }
 
+  changeDate(value:Date){
+    this.value=value;
+  }
 }

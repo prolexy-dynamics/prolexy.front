@@ -1,4 +1,4 @@
-import { Component, ElementRef, Input, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { Token, EOF } from 'prolexy.core';
 
 @Component({
@@ -11,6 +11,7 @@ export class ExpressionStringEditorComponent {
   mode: ('edit' | 'view') = 'view';
 
   _token: Token = EOF;
+  @Output() valueChange = new EventEmitter();
   @Input()
   get token(): Token { return this._token; }
   set token(val: Token) {
@@ -38,6 +39,7 @@ export class ExpressionStringEditorComponent {
   switchToView() {
     this.mode = 'view';
     this.token.value = this.value;
+    this.valueChange.emit(this.value);
   }
   setValue(evt: any) {
     this.value = evt.target.textContent;
