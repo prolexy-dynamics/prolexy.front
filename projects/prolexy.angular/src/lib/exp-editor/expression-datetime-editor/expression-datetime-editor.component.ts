@@ -21,9 +21,9 @@ export class ExpressionDatetimeEditorComponent {
     // else
     //   this.value = this.token.value ? moment.from(this.token.value, 'en', 'YYYY/MM/DD') as any : new Date;
   }
-  text='';
+  text = '';
   setText() {
-    this.text= this.value.format ? this.value.locale('fa').format('YYYY/MM/DD') : this.value.toLocaleDateString('fa');
+    this.text = this.value.format ? this.value.locale('fa').format('YYYY/MM/DD') : this.value.toLocaleDateString('fa');
   }
   @Input()
   token: Token = EOF;
@@ -35,7 +35,7 @@ export class ExpressionDatetimeEditorComponent {
     this.token.value = val.format ? val.locale('en').format('YYYY/MM/DD') : val.toLocaleDateString();
     this.valueChange.emit(this.token.value);
     this.setText();
-    this._value=null;
+    this._value = null;
   }
 
   @ViewChild('picker')
@@ -43,7 +43,7 @@ export class ExpressionDatetimeEditorComponent {
     v?.open();
   }
 
-  changeDate(value:Date){
-    this.value=value;
+  changeDate(value: Date) {
+    this.value = value;
   }
 }

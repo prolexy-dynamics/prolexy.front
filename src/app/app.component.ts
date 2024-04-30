@@ -24,7 +24,6 @@ import { FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angul
     ReactiveFormsModule
   ],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.css'
 })
 export class AppComponent implements OnInit {
   save() {
