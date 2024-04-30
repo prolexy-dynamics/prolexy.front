@@ -1,5 +1,5 @@
 <span  *ngIf="mode === 'edit'">
-    <input #input matInput [matDatepicker]="picker" [value]="value" (dateChange)="changeDate($event?.value)" (click)="picker.open()">
+    <input #input matInput [matDatepicker]="picker" [value]="value" (dateChange)="changeDate($event.value)" (click)="picker.open()">
     <mat-datepicker  #picker></mat-datepicker>
 </span>
 <span *ngIf="mode === 'view'">{{text}}</span>

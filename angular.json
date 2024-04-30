@@ -61,10 +61,10 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "prolexy:build:production"
+              "browserTarget": "prolexy:build:production"
             },
             "development": {
-              "buildTarget": "prolexy:build:development"
+              "browserTarget": "prolexy:build:development"
             }
           },
           "defaultConfiguration": "development"
