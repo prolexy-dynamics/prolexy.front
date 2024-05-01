@@ -3220,10 +3220,10 @@ export class AppComponent implements OnInit {
       ]
     };
 
-    Object.assign(this.prolexyContext, typeData);
-    var data = createTypeFromJson(this.repository, this.prolexyContext);
+    // Object.assign(this.prolexyContext, typeData);
+    // var data = createTypeFromJson(this.repository, this.prolexyContext);
 
-    this.schema = data.businessObjectTypeData.createType(data) as ContextSchema;
+    this.schema = typeData as any;//data.businessObjectTypeData.createType(data) as ContextSchema;
 
     this.expression = new FormGroup({
       firstName: new FormControl('EventVersion == 20', []),
@@ -3239,6 +3239,11 @@ export class AppComponent implements OnInit {
     debugger;
     this.expectedType = PrimitiveTypes.fromName(el.value)!;
     this.expression.controls['firstName'].updateValueAndValidity();
+  }
+
+  show=true;
+  toggle(){
+    this.show=!this.show;
   }
 }
 

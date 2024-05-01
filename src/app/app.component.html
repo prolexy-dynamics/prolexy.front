@@ -196,14 +196,16 @@
       <option value="boolean">boolean</option>
     </select>
   </label>
-  <app-expression-editor [schema]="schema"
-                         [tokens]="tokens"
-                         [expectedType]="expectedType"
-                         [editorMode]="'expression'"
-                         expectedTypeValidator="true"
-                         [(ngModel)]="model.expression"
-                         name="expression"></app-expression-editor>
+  <prolex-expression-editor [schema]="schema"
+                            *ngIf="show"
+                            [tokens]="tokens"
+                            [expectedType]="expectedType"
+                            [editorMode]="'expression'"
+                            expectedTypeValidator="true"
+                            [(ngModel)]="model.expression"
+                            name="expression" />
   <button (click)="save()">Save</button>
+  <button (click)="toggle()">Toggle</button>
   <p>Form Status: {{ expression.valid }}</p>
 </form>
 <main class="main">
