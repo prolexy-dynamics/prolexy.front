@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "tslib": "^2.3.0",
-    "jalali-moment": "^3.3.11",
+    "dayjs": "1.11.10",
+    "jalaliday": "2.3.0",
     "prolexy.core": "^1.0.2"
   },
   "sideEffects": false
