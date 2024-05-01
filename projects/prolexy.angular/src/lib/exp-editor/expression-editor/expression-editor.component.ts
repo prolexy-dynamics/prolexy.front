@@ -4,6 +4,7 @@ import { Span, ContextSchema, EOF, Operations, PrimitiveTypes, Token, TokenType,
 import { suggestNextTokensInStatementMode, suggestNextTokensInExpressionMode, Parser } from 'prolexy.core';
 import { SyntaxErrorVisitor, SemanticErrorAnalizer, SemanticErrorContext } from 'prolexy.core'
 import { CoderVisitor } from 'prolexy.core';
+import { ContextSchemaRepositoryService } from '../../shared/context-schema-repository.service';
 
 @Component({
   selector: 'prolex-expression-editor',
@@ -15,6 +16,7 @@ import { CoderVisitor } from 'prolexy.core';
   ]
 })
 export class ExpressionEditorComponent implements ControlValueAccessor, OnInit, Validator, OnDestroy {
+  private repository: ContextSchemaRepositoryService = new ContextSchemaRepositoryService();
   private lexer: Lexer = new Lexer();
 
   private _expectedType: IType | undefined;
@@ -101,7 +103,21 @@ export class ExpressionEditorComponent implements ControlValueAccessor, OnInit, 
   }
   @ViewChildren('tokens') tokenElements: QueryList<ElementRef> = null!;
 
-  @Input() schema: ContextSchema = null!;
+  private _schema: ContextSchema = new ContextSchema(this.repository, "", [], [], []);
+  @Input()
+  get schema(): ContextSchema { return this._schema; }
+  set schema(typeData: any) {
+    if(!typeData) return;
+    if (typeData instanceof ContextSchema) {
+      this._schema = typeData;
+      return;
+    }
+    var prolexyContext: ProlexyContext = new ProlexyContext();
+    Object.assign(prolexyContext, typeData);
+    var data = createTypeFromJson(this.repository, prolexyContext);
+
+    this.schema = data.businessObjectTypeData.createType(data) as ContextSchema;
+  }
   @Input() tokens: Array<Token> = [];
   @Input() beginScope: Array<string> = ['then', 'else'];
   @Input() endScope: Array<string> = ['else', 'end'];
