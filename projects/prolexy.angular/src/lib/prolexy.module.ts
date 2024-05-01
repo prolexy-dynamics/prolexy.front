@@ -1,24 +1,41 @@
 import { CommonModule, HashLocationStrategy, LocationStrategy } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Title } from '@angular/platform-browser';
 
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { AppComponent } from './app.component';
-import { routes } from './app.routes';
+import { KendoJalaliDateInputsModule } from '@tiampersian/kendo-jalali-date-inputs';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import isLeapYear from 'dayjs/plugin/isLeapYear';
+import objectSupport from 'dayjs/plugin/objectSupport';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
+import jalaliday from 'jalaliday';
+import './date.helper';
 import { ExpressionDatetimeEditorComponent } from './exp-editor/expression-datetime-editor/expression-datetime-editor.component';
 import { ExpressionDeclarationEditorComponent } from './exp-editor/expression-declaration-editor/expression-declaration-editor.component';
 import { ExpressionEditorComponent } from './exp-editor/expression-editor/expression-editor.component';
 import { ExpressionEnumerationEditorComponent } from './exp-editor/expression-enumeration-editor/expression-enumeration-editor.component';
 import { ExpressionNumberEditorComponent } from './exp-editor/expression-number-editor/expression-number-editor.component';
 import { ExpressionStringEditorComponent } from './exp-editor/expression-string-editor/expression-string-editor.component';
-import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
-import { MaterialPersianDateAdapter, PERSIAN_DATE_FORMATS } from './shared/material.persian-date.adapter';
+
+// import zonePlugin from './dayjs-proto';
+
+dayjs.extend(jalaliday);
+dayjs.extend(customParseFormat);
+dayjs.extend(objectSupport);
+dayjs.extend(relativeTime);
+dayjs.extend(isLeapYear);
+dayjs.extend(timezone);
+dayjs.extend(utc);
+
+if (typeof window !== 'undefined') {
+  (window as any)['dayjs'] = dayjs;
+}
 
 
 @NgModule({
   declarations: [
-    AppComponent,
     ExpressionEditorComponent,
     ExpressionStringEditorComponent,
     ExpressionNumberEditorComponent,
@@ -28,10 +45,7 @@ import { MaterialPersianDateAdapter, PERSIAN_DATE_FORMATS } from './shared/mater
   ],
   imports: [
     CommonModule,
-    ReactiveFormsModule,
-    FormsModule,
-    MatDatepickerModule,
-    routes
+    KendoJalaliDateInputsModule
   ],
   exports:[
     ExpressionEditorComponent,
@@ -41,11 +55,7 @@ import { MaterialPersianDateAdapter, PERSIAN_DATE_FORMATS } from './shared/mater
       provide: LocationStrategy,
       useClass: HashLocationStrategy,
     },
-    {provide: DateAdapter, useClass: MaterialPersianDateAdapter, deps: [MAT_DATE_LOCALE]},
-    {provide: MAT_DATE_FORMATS, useValue: PERSIAN_DATE_FORMATS},
-    Title
   ],
-  bootstrap: [AppComponent],
 })
 export class ProlexyModule {
 }

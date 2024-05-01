@@ -3,8 +3,6 @@ import { Component, OnInit } from '@angular/core';
 import { ContextSchema, IType, PrimitiveTypeData, PrimitiveTypes, Token, createTypeFromJson } from 'prolexy.core';
 import { RouterOutlet } from '@angular/router';
 import { ContextSchemaRepositoryService, ExpressionEditorComponent, ProlexyModule, createExpressionValidator } from 'prolexy.angular';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { ProlexyContext } from 'prolexy.core';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 
@@ -19,8 +17,6 @@ import { FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angul
     RouterOutlet,
     ProlexyModule,
     // RouterModule,
-    MatNativeDateModule,
-    MatDatepickerModule,
     ReactiveFormsModule
   ],
   templateUrl: './app.component.html',
