@@ -24,9 +24,9 @@ export class ExpressionDatetimeEditorComponent {
   }
   @Input()
   token: Token = EOF;
-  _value: any;
-  public get value(): any {
-    return this._value ?? (this._value = this.token.value ? dayjs(this.token.value, 'YYYY/MM/DD') as any : new Date);
+  _value: any; 
+  get value(): any {
+    return this._value ?? (this._value = this.token.value ? dayjs(this.token.value, 'YYYY/MM/DD').toDate() as any : new Date);
   }
   public set value(val: any) {
     this.token.value = !val ? '' : dayjs(val).format('YYYY/MM/DD');
@@ -35,9 +35,8 @@ export class ExpressionDatetimeEditorComponent {
     this._value = null;
   }
 
-  @ViewChild('picker')
-  public set picker(v: any) {
-    v?.open();
+  @ViewChild('picker') set picker(v: any) {
+    v?.toggle(true);
   }
 
   constructor(@Inject(LOCALE_ID) private localeId: string) {

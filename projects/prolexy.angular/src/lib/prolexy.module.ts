@@ -1,9 +1,8 @@
 import { CommonModule, HashLocationStrategy, LocationStrategy } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Title } from '@angular/platform-browser';
 
-import { MatDatepickerModule } from '@angular/material/datepicker';
+import { KendoJalaliDateInputsModule } from '@tiampersian/kendo-jalali-date-inputs';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import isLeapYear from 'dayjs/plugin/isLeapYear';
@@ -19,7 +18,6 @@ import { ExpressionEditorComponent } from './exp-editor/expression-editor/expres
 import { ExpressionEnumerationEditorComponent } from './exp-editor/expression-enumeration-editor/expression-enumeration-editor.component';
 import { ExpressionNumberEditorComponent } from './exp-editor/expression-number-editor/expression-number-editor.component';
 import { ExpressionStringEditorComponent } from './exp-editor/expression-string-editor/expression-string-editor.component';
-import { MatDayjsDateModule } from './shared/mat-dayjs-date.module';
 
 // import zonePlugin from './dayjs-proto';
 
@@ -46,10 +44,7 @@ if (typeof window !== 'undefined') {
   ],
   imports: [
     CommonModule,
-    ReactiveFormsModule,
-    FormsModule,
-    MatDatepickerModule,
-    MatDayjsDateModule,
+    KendoJalaliDateInputsModule
   ],
   exports:[
     ExpressionEditorComponent,
