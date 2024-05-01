@@ -3,7 +3,7 @@ import * as moment from 'jalali-moment';
 import { EOF, Token } from 'prolexy.core';
 
 @Component({
-  selector: 'app-expression-datetime-editor',
+  selector: 'prolex-expression-datetime-editor',
   templateUrl: './expression-datetime-editor.component.html',
   styleUrls: ['./expression-datetime-editor.component.sass']
 })

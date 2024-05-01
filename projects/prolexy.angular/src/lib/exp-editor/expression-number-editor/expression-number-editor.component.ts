@@ -2,7 +2,7 @@ import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnInit, Outp
 import { Token, EOF } from 'prolexy.core';
 
 @Component({
-  selector: 'app-expression-number-editor',
+  selector: 'prolex-expression-number-editor',
   templateUrl: './expression-number-editor.component.html',
   styleUrls: ['./expression-number-editor.component.sass']
 })

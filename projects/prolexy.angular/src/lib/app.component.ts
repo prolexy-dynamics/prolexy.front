@@ -4,7 +4,7 @@ import { ContextSchema, DataSource, Enumerable, Enumeration, Method, MethodSigne
 import {  PrimitiveTypes, Token } from 'prolexy.core';
 import { ContextSchemaRepositoryService } from './shared/context-schema-repository.service';
 @Component({
-  selector: 'app-root',
+  selector: 'prolex-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.sass']
 })

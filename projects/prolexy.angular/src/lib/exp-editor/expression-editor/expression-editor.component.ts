@@ -6,7 +6,7 @@ import { SyntaxErrorVisitor, SemanticErrorAnalizer, SemanticErrorContext } from 
 import { CoderVisitor } from 'prolexy.core';
 
 @Component({
-  selector: 'app-expression-editor',
+  selector: 'prolex-expression-editor',
   templateUrl: './expression-editor.component.html',
   styleUrls: ['./expression-editor.component.sass'],
   providers: [

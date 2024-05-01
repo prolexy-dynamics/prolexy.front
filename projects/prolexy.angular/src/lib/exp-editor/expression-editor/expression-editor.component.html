@@ -14,23 +14,23 @@
                 (click)="showSuggestion(i, $event)" (focus)="showSuggestion(i, $event)" (keydown)="filter($event)"
                 #tokens (mouseenter)="showErrorMessages (i)" cTooltipPlacement="top">
                 <ng-container *ngIf="t.type === PrimitiveTypes.string">
-                    <app-expression-string-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'"  (valueChange)="updateValue(true)">
-                    </app-expression-string-editor>
+                    <prolex-expression-string-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'"  (valueChange)="updateValue(true)">
+                    </prolex-expression-string-editor>
                 </ng-container>
                 <ng-container *ngIf="t.declaration">
-                    <app-expression-declaration-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'">
-                    </app-expression-declaration-editor>
+                    <prolex-expression-declaration-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'">
+                    </prolex-expression-declaration-editor>
                 </ng-container>
                 <ng-container *ngIf="t.type === PrimitiveTypes.number">
-                    <app-expression-number-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'" (valueChange)="updateValue(true)">
-                    </app-expression-number-editor>
+                    <prolex-expression-number-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'" (valueChange)="updateValue(true)">
+                    </prolex-expression-number-editor>
                 </ng-container>
                 <ng-container *ngIf="t.type === PrimitiveTypes.datetime">
-                    <app-expression-datetime-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'" (valueChange)="updateValue(true)">
-                    </app-expression-datetime-editor>
+                    <prolex-expression-datetime-editor [token]="t" [mode]="i === suggestionOpened ? 'edit':'view'" (valueChange)="updateValue(true)">
+                    </prolex-expression-datetime-editor>
                 </ng-container>
                 <ng-container *ngIf="isEnumeration(t)">
-                    <app-expression-enumeration-editor [token]="t"></app-expression-enumeration-editor>
+                    <prolex-expression-enumeration-editor [token]="t"></prolex-expression-enumeration-editor>
                 </ng-container>
                 <ng-container *ngIf="t.tokenType !== TokenType.const && !t.declaration">{{t.text}}</ng-container>
                 <ul *ngIf="suggestionOpened === i">

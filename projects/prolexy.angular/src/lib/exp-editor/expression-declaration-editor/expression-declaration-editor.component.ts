@@ -2,7 +2,7 @@ import { Component, ElementRef, Input, ViewChild } from '@angular/core';
 import { EOF, Token } from 'prolexy.core';
 
 @Component({
-  selector: 'app-expression-declaration-editor',
+  selector: 'prolex-expression-declaration-editor',
   templateUrl: './expression-declaration-editor.component.html',
   styleUrls: ['./expression-declaration-editor.component.scss']
 })

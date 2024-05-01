@@ -2,7 +2,7 @@ import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@
 import { Token, EOF } from 'prolexy.core';
 
 @Component({
-  selector: 'app-expression-string-editor',
+  selector: 'prolex-expression-string-editor',
   templateUrl: './expression-string-editor.component.html',
   styleUrls: ['./expression-string-editor.component.sass']
 })
