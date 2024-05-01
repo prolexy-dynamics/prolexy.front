@@ -1,169 +1,259 @@
-import { DateAdapter } from "@angular/material/core";
-import moment from "jalali-moment";
+import { Optional, Inject, InjectionToken } from '@angular/core';
+import { DateAdapter, MAT_DATE_LOCALE } from '@angular/material/core';
+import dayjs, { Dayjs } from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import localeData from 'dayjs/plugin/localeData';
+import LocalizedFormat from 'dayjs/plugin/localizedFormat';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import { MatDateFormats } from '@angular/material/core';
 
-export const PERSIAN_DATE_FORMATS = {
+/**
+ * Custom Date-Formats and Adapter (using https://github.com/iamkun/dayjs)
+ */
+export const MAT_DAYJS_DATE_FORMATS: MatDateFormats = {
   parse: {
-    dateInput: "jYYYY/jMM/jDD"
+    dateInput: 'MM/DD/YYYY',
   },
   display: {
-    dateInput: "jYYYY/jMM/jDD",
-    monthYearLabel: "jYYYY jMMMM",
-    dateA11yLabel: "jYYYY/jMM/jDD",
-    monthYearA11yLabel: "jYYYY jMMMM"
+    dateInput: 'MM/DD/YYYY',
+    monthYearLabel: 'MMM YYYY',
+    dateA11yLabel: 'LL',
+    monthYearA11yLabel: 'MMMM YYYY',
   }
 };
 
-export class MaterialPersianDateAdapter extends DateAdapter<moment.Moment> {
+export interface DayJsDateAdapterOptions {
+  /**
+   * Turns the use of utc dates on or off.
+   * Changing this will change how Angular Material components like DatePicker output dates.
+   * {@default false}
+   */
+  useUtc?: boolean;
+}
 
-  constructor() {
+/** InjectionToken for Dayjs date adapter to configure options. */
+export const MAT_DAYJS_DATE_ADAPTER_OPTIONS = new InjectionToken<DayJsDateAdapterOptions>(
+  'MAT_DAYJS_DATE_ADAPTER_OPTIONS', {
+  providedIn: 'root',
+  factory: MAT_DAYJS_DATE_ADAPTER_OPTIONS_FACTORY
+});
+
+export function MAT_DAYJS_DATE_ADAPTER_OPTIONS_FACTORY(): DayJsDateAdapterOptions {
+  return {
+    useUtc: false
+  };
+}
+
+/** Creates an array and fills it with values. */
+function range<T>(length: number, valueFunction: (index: number) => T): T[] {
+  const valuesArray = Array(length);
+  for (let i = 0; i < length; i++) {
+    valuesArray[i] = valueFunction(i);
+  }
+  return valuesArray;
+}
+
+/** Adapts Dayjs Dates for use with Angular Material. */
+export class DayjsDateAdapter extends DateAdapter<Dayjs> {
+  private localeData: {
+    firstDayOfWeek: number;
+    longMonths: string[];
+    shortMonths: string[];
+    dates: string[];
+    longDaysOfWeek: string[];
+    shortDaysOfWeek: string[];
+    narrowDaysOfWeek: string[];
+  } = {
+    firstDayOfWeek: 0,
+    longMonths: [],
+    shortMonths: [],
+    dates: [],
+    longDaysOfWeek: [],
+    shortDaysOfWeek: [],
+    narrowDaysOfWeek: []
+  };
+
+  constructor(@Optional() @Inject(MAT_DATE_LOCALE) public dateLocale: string,
+    @Optional() @Inject(MAT_DAYJS_DATE_ADAPTER_OPTIONS) private options?: DayJsDateAdapterOptions) {
     super();
-    super.setLocale("fa");
+
+    this.initializeParser(dateLocale);
   }
 
-  getYear(date: moment.Moment): number {
-    return this.clone(date).jYear();
+  // TODO: Implement
+  override setLocale(locale: string) {
+    super.setLocale(locale);
+
+    const dayJsLocaleData = this.dayJs().localeData();
+    this.localeData = {
+      firstDayOfWeek: dayJsLocaleData.firstDayOfWeek(),
+      longMonths: dayJsLocaleData.months(),
+      shortMonths: dayJsLocaleData.monthsShort(),
+      dates: range(31, (i) => this.createDate(2017, 0, i + 1).format('D')),
+      longDaysOfWeek: range(7, (i) => this.dayJs().set('day', i).format('dddd')),
+      shortDaysOfWeek: dayJsLocaleData.weekdaysShort(),
+      narrowDaysOfWeek: dayJsLocaleData.weekdaysMin(),
+    };
   }
 
-  getMonth(date: moment.Moment): number {
-    return this.clone(date).jMonth();
+  getYear(date: Dayjs): number {
+    return this.dayJs(date).year();
   }
 
-  getDate(date: moment.Moment): number {
-    return this.clone(date).jDate();
+  getMonth(date: Dayjs): number {
+    return this.dayJs(date).month();
   }
 
-  getDayOfWeek(date: moment.Moment): number {
-    return this.clone(date).day();
+  getDate(date: Dayjs): number {
+    return this.dayJs(date).date();
   }
 
-  getMonthNames(style: "long" | "short" | "narrow"): string[] {
-    switch (style) {
-      case "long":
-      case "short":
-        return moment.localeData("fa").jMonths().slice(0);
-      case "narrow":
-        return moment.localeData("fa").jMonthsShort().slice(0);
-    }
+  getDayOfWeek(date: Dayjs): number {
+    return this.dayJs(date).day();
+  }
+
+  getMonthNames(style: 'long' | 'short' | 'narrow'): string[] {
+    return style === 'long' ? this.localeData.longMonths : this.localeData.shortMonths;
   }
 
   getDateNames(): string[] {
-    const valuesArray = Array(31);
-    for (let i = 0; i < 31; i++) {
-      valuesArray[i] = String(i + 1);
-    }
-    return valuesArray;
+    return this.localeData.dates;
   }
 
-  getDayOfWeekNames(style: "long" | "short" | "narrow"): string[] {
-    switch (style) {
-      case "long":
-        return moment.localeData("fa").weekdays().slice(0);
-      case "short":
-        return moment.localeData("fa").weekdaysShort().slice(0);
-      case "narrow":
-        return ["ی", "د", "س", "چ", "پ", "ج", "ش"];
+  getDayOfWeekNames(style: 'long' | 'short' | 'narrow'): string[] {
+    if (style === 'long') {
+      return this.localeData.longDaysOfWeek;
     }
+    if (style === 'short') {
+      return this.localeData.shortDaysOfWeek;
+    }
+    return this.localeData.narrowDaysOfWeek;
   }
 
-  getYearName(date: moment.Moment): string {
-    return this.clone(date).jYear().toString();
+  getYearName(date: Dayjs): string {
+    return this.dayJs(date).format('YYYY');
   }
 
   getFirstDayOfWeek(): number {
-    return moment.localeData("fa").firstDayOfWeek();
+    return this.localeData.firstDayOfWeek;
   }
 
-  getNumDaysInMonth(date: moment.Moment): number {
-    return this.clone(date).jDaysInMonth();
+  getNumDaysInMonth(date: Dayjs): number {
+    return this.dayJs(date).daysInMonth();
   }
 
-  clone(date: moment.Moment): moment.Moment {
-    return date.clone().locale("fa");
+  clone(date: Dayjs): Dayjs {
+    return date.clone();
   }
 
-  createDate(year: number, month: number, date: number): moment.Moment {
-    if (month < 0 || month > 11) {
-      throw Error(
-        `Invalid month index "${month}". Month index has to be between 0 and 11.`
-      );
+  createDate(year: number, month: number, date: number): Dayjs {
+    const returnDayjs = this.dayJs()
+      .set('year', year)
+      .set('month', month)
+      .set('date', date);
+    return returnDayjs;
+  }
+
+  today(): Dayjs {
+    return this.dayJs();
+  }
+
+  parse(value: any, parseFormat: string): Dayjs | null {
+    if (value && typeof value === 'string') {
+      return this.dayJs(value, dayjs().localeData().longDateFormat(parseFormat), this.locale);
     }
-    if (date < 1) {
-      throw Error(`Invalid date "${date}". Date has to be greater than 0.`);
-    }
-    const result = moment().jYear(year).jMonth(month).jDate(date)
-      .hours(0).minutes(0).seconds(0).milliseconds(0)
-      .locale("fa");
-
-    if (this.getMonth(result) !== month) {
-      throw Error(`Invalid date ${date} for month with index ${month}.`);
-    }
-    if (!result.isValid()) {
-      throw Error(`Invalid date "${date}" for month with index "${month}".`);
-    }
-    return result;
+    return value ? this.dayJs(value).locale(this.locale) : null;
   }
 
-  today(): moment.Moment {
-    return moment().locale("fa");
-  }
-
-  parse(value: any, parseFormat: string | string[]): moment.Moment | null {
-    if (value && typeof value === "string") {
-      return moment(value, parseFormat, "fa");
-    }
-    return value ? moment(value).locale("fa") : null;
-  }
-
-  format(date: moment.Moment, displayFormat: string): string {
-    date = this.clone(date);
+  format(date: Dayjs, displayFormat: string): string {
     if (!this.isValid(date)) {
-      throw Error("JalaliMomentDateAdapter: Cannot format invalid date.");
+      throw Error('DayjsDateAdapter: Cannot format invalid date.');
     }
-    return date.format(displayFormat);
+    return date.locale(this.locale).format(displayFormat);
   }
 
-  addCalendarYears(date: moment.Moment, years: number): moment.Moment {
-    return this.clone(date).add(years, "jYear");
+  addCalendarYears(date: Dayjs, years: number): Dayjs {
+    return date.add(years, 'year');
   }
 
-  addCalendarMonths(date: moment.Moment, months: number): moment.Moment {
-    return this.clone(date).add(months, "jmonth");
+  addCalendarMonths(date: Dayjs, months: number): Dayjs {
+    return date.add(months, 'month');
   }
 
-  addCalendarDays(date: moment.Moment, days: number): moment.Moment {
-    return this.clone(date).add(days, "jDay");
+  addCalendarDays(date: Dayjs, days: number): Dayjs {
+    return date.add(days, 'day');
   }
 
-  toIso8601(date: moment.Moment): string {
-    return this.clone(date).format();
+  toIso8601(date: Dayjs): string {
+    return date.toISOString();
   }
 
-  isDateInstance(obj: any): boolean {
-    return moment.isMoment(obj);
-  }
-
-  isValid(date: moment.Moment): boolean {
-    return this.clone(date).isValid();
-  }
-
-  invalid(): moment.Moment {
-    return moment.invalid();
-  }
-
-  override deserialize(value: any): moment.Moment | null {
+  /**
+   * Attempts to deserialize a value to a valid date object. This is different from parsing in that
+   * deserialize should only accept non-ambiguous, locale-independent formats (e.g. a ISO 8601
+   * string). The default implementation does not allow any deserialization, it simply checks that
+   * the given value is already a valid date object or null. The `<mat-datepicker>` will call this
+   * method on all of it's `@Input()` properties that accept dates. It is therefore possible to
+   * support passing values from your backend directly to these properties by overriding this method
+   * to also deserialize the format used by your backend.
+   * @param value The value to be deserialized into a date object.
+   * @returns The deserialized date object, either a valid date, null if the value can be
+   *     deserialized into a null date (e.g. the empty string), or an invalid date.
+   */
+  override deserialize(value: any): Dayjs | null {
     let date;
     if (value instanceof Date) {
-      date = moment(value);
+      date = this.dayJs(value);
+    } else if (this.isDateInstance(value)) {
+      // NOTE: assumes that cloning also sets the correct locale.
+      return this.clone(value);
     }
-    if (typeof value === "string") {
+    if (typeof value === 'string') {
       if (!value) {
         return null;
       }
-      date = moment(value).locale("fa");
+      date = this.dayJs(value).toISOString();
     }
-    if (date && this.isValid(date)) {
-      return date;
+    if (date && this.isValid(date as any)) {
+      return this.dayJs(date); // NOTE: Is this necessary since Dayjs is immutable and Moment was not?
     }
     return super.deserialize(value);
   }
+
+  isDateInstance(obj: any): boolean {
+    return dayjs.isDayjs(obj);
+  }
+
+  isValid(date: Dayjs): boolean {
+    return this.dayJs(date).isValid();
+  }
+
+  invalid(): Dayjs {
+    return this.dayJs(null);
+  }
+
+  private dayJs(input?: any, format?: string, locale?: string): Dayjs {
+    if (!this.shouldUseUtc) {
+      return dayjs(input, { format, locale }, locale);
+    }
+    return dayjs(input, { format, locale, utc: this.shouldUseUtc }, locale).utc();
+  }
+
+  private get shouldUseUtc(): boolean {
+    const { useUtc }: DayJsDateAdapterOptions = this.options || {};
+    return !!useUtc;
+  }
+
+  private initializeParser(dateLocale: string) {
+    if (this.shouldUseUtc) {
+      dayjs.extend(utc);
+    }
+
+    dayjs.extend(LocalizedFormat);
+    dayjs.extend(customParseFormat);
+    dayjs.extend(localeData);
+
+    this.setLocale(dateLocale);
+  }
 }
+

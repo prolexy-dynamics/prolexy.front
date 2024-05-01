@@ -1,5 +1,5 @@
-import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
-import * as moment from 'jalali-moment';
+import { Component, EventEmitter, Inject, Input, LOCALE_ID, Output, ViewChild } from '@angular/core';
+import dayjs from 'dayjs';
 import { EOF, Token } from 'prolexy.core';
 
 @Component({
@@ -8,39 +8,39 @@ import { EOF, Token } from 'prolexy.core';
   styleUrls: ['./expression-datetime-editor.component.sass']
 })
 export class ExpressionDatetimeEditorComponent {
-  _mode: ('edit' | 'view') = 'view';
   @Output() valueChange = new EventEmitter();
+  _mode: ('edit' | 'view') = 'view';
+  calandarType: 'jalali' | 'gregory';
   @Input()
   get mode(): ('edit' | 'view') {
     return this._mode;
   }
   set mode(val: ('edit' | 'view')) {
     this._mode = val;
-    // if (val === 'view')
-    //   this.token.value = this.value.format ? this.value.locale('en').format('YYYY/MM/DD') : this.value.toLocaleDateString();
-    // else
-    //   this.value = this.token.value ? moment.from(this.token.value, 'en', 'YYYY/MM/DD') as any : new Date;
   }
   text = '';
   setText() {
-    this.text = this.value.format ? this.value.locale('fa').format('YYYY/MM/DD') : this.value.toLocaleDateString('fa');
+    this.text = !this.value ? '' : dayjs(this.value).calendar(this.calandarType).locale(this.localeId).format('YYYY/MM/DD');
   }
   @Input()
   token: Token = EOF;
-  _value: any;
-  public get value(): any {
-    return this._value ?? (this._value = this.token.value ? moment.from(this.token.value, 'en', 'YYYY/MM/DD') as any : new Date);
+  _value: any; 
+  get value(): any {
+    return this._value ?? (this._value = this.token.value ? dayjs(this.token.value, 'YYYY/MM/DD').toDate() as any : new Date);
   }
   public set value(val: any) {
-    this.token.value = val.format ? val.locale('en').format('YYYY/MM/DD') : val.toLocaleDateString();
+    this.token.value = !val ? '' : dayjs(val).format('YYYY/MM/DD');
     this.valueChange.emit(this.token.value);
     this.setText();
     this._value = null;
   }
 
-  @ViewChild('picker')
-  public set picker(v: any) {
-    v?.open();
+  @ViewChild('picker') set picker(v: any) {
+    v?.toggle(true);
+  }
+
+  constructor(@Inject(LOCALE_ID) private localeId: string) {
+    this.calandarType = (localeId === 'fa' || localeId === 'fa-IR') ? 'jalali' : 'gregory';
   }
 
   changeDate(value: Date) {
