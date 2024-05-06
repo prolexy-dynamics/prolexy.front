@@ -76,6 +76,7 @@ export class PrimitiveTypes implements IType {
     isAssignableFrom(type: IType): unknown {
         return this === type;
     }
+    static void = new PrimitiveTypes("void");
     static number = new PrimitiveTypes("number");
     static string = new PrimitiveTypes("string");
     static datetime = new PrimitiveTypes("datetime");
@@ -84,7 +85,7 @@ export class PrimitiveTypes implements IType {
     static enum = new PrimitiveTypes("enum");
     static selective = (extendedType: PrimitiveTypes) => new PrimitiveTypes("enum", extendedType);
     static null = new PrimitiveTypes("object");
-    static all = [this.number, this.string, this.datetime, this.bool, this.complex, this.enum];
+    static all = [this.number, this.string, this.datetime, this.bool, this.complex, this.enum, this.void];
     static fromName(name: string) {
         return this.all.find(t => t.name === name);
     }

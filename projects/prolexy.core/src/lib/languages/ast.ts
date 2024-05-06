@@ -197,6 +197,7 @@ export class TypeDetectorContext {
 };
 type TypeDetectorResult = { type?: ExpType, suggestions: Array<Token>, suggestionLoader?: Promise<Array<Token>>, lastOperandType?: ExpType, lastOperator?: Operations };
 export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
+    visitedNode: Array<{ ast: Ast, result: any }> = [];
     visitCompositExpectations(ast: CompositionExpected, context: TypeDetectorContext) {
         var result: any = { suggestions: ast.expectations.reduce((a, b) => a.concat(b.visit(this, context).suggestions), []) };
         return result;
@@ -223,8 +224,8 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
         }
         return this.expectedOperators({ suggestions: [], type: context.allTypes.find(t => t.name === ast.typeIdentification?.value) }, context);
     }
-    visit?(ast: Ast, context?: any) {
-        throw new Error("Method not implemented.");
+    visit(ast: Ast, context?: any): any {
+        return this.visitedNode.find(v => v.ast === ast)?.result;
     }
     visitExpectedDeclaration(declaration: Ast, context: TypeDetectorContext) {
         return { suggestions: [new Token(TokenType.identifier, "var", PrimitiveTypes.bool, true)] }
@@ -352,6 +353,7 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
     visitBinary(ast: Binary, context: TypeDetectorContext): any {
         var result: TypeDetectorResult = { suggestions: [], lastOperator: ast.operation as Operations };
         var leftResult = ast.left.visit(this, context);
+        this.visitedNode.push({ast: ast.left, result: leftResult});
         context.leftType = null!;
         if (ast.expectedAtEnd?.span.contains(context.typeAt))
             this.appendExpectedAtEnd(ast, context, result.suggestions);
@@ -364,7 +366,10 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
             if (ast.operation === Operations.is || ast.operation === Operations.isNot)
                 context.expectedType = leftResult.type, result.type = PrimitiveTypes.bool;
             else if (numericOperations.find(o => o === ast.operation))
-                context.expectedType = PrimitiveTypes.number, result.type = PrimitiveTypes.number;
+                if (leftResult.type === PrimitiveTypes.string)
+                    context.expectedType = PrimitiveTypes.string, result.type = PrimitiveTypes.string;
+                else
+                    context.expectedType = PrimitiveTypes.number, result.type = PrimitiveTypes.number;
             else if (dateOperations.find(o => o === ast.operation))
                 context.expectedType = PrimitiveTypes.datetime, result.type = PrimitiveTypes.bool;
             else if (stringOperations.find(o => o === ast.operation))
@@ -645,7 +650,7 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
                 if (cur.operation && OperationOrders[cur.operation] >= OperationOrders[op] &&
                     (!cur.parent || OperationOrders[cur.parent.operation] < OperationOrders[op])) {
                     if (blackList.indexOf(cur) == -1) {
-                        if (this.compatible(this.binaryResultType(cur), op)) {
+                        if (this.compatible(this.binaryResultType(leftExp.type!, cur, context), op)) {
                             result.push(Token.operator(op));
                             break;
                         }
@@ -656,12 +661,16 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
         }
         return { type: leftExp.type, suggestions: result };
     }
-    binaryResultType(ast: Binary): PrimitiveTypes {
+    binaryResultType(leftType: IType, ast: Binary, context: TypeDetectorContext): PrimitiveTypes {
         if (ast.operation === Operations.is || ast.operation === Operations.isNot ||
             logicalOperations.find(o => o === ast.operation) || relationalOperations.find(o => o === ast.operation) ||
             stringOperations.find(o => o === ast.operation) || dateOperations.find(o => o === ast.operation))
             return PrimitiveTypes.bool;
-        return PrimitiveTypes.number;
+        // if (ast.operation === Operations.plus) {
+        //     return this.visitedNode.find(v => v.ast === ast.left)?.result.type || ast.left.visit(this, context)?.type;
+        //     //            if(leftType === PrimitiveTypes.string)
+        // }
+        return leftType as PrimitiveTypes;
     }
     compatible(left: ExpType | undefined, right: Operations): boolean {
         if (left === PrimitiveTypes.number)
@@ -669,7 +678,7 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
         if (left === PrimitiveTypes.datetime)
             return [...dateOperations, Operations.is, Operations.isNot].indexOf(right) > -1;
         if (left === PrimitiveTypes.string)
-            return [...stringOperations, Operations.is, Operations.isNot].indexOf(right) > -1;
+            return [...stringOperations, Operations.plus, Operations.is, Operations.isNot].indexOf(right) > -1;
         if (left === PrimitiveTypes.bool)
             return [...logicalOperations, Operations.is, Operations.isNot].indexOf(right) > -1;
         if (left instanceof Enumeration || left === PrimitiveTypes.enum)

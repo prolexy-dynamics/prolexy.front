@@ -21,6 +21,7 @@ var compatiblityChecker = [
     { operations: [Operations.is, Operations.isNot], left: PrimitiveTypes.enum, right: PrimitiveTypes.enum, result: PrimitiveTypes.bool },
     { operations: [...logicalOperations], left: PrimitiveTypes.bool, right: PrimitiveTypes.bool, result: PrimitiveTypes.bool },
     { operations: [...stringOperations], left: PrimitiveTypes.string, right: PrimitiveTypes.string, result: PrimitiveTypes.bool },
+    { operations: [...Operations.plus], left: PrimitiveTypes.string, right: PrimitiveTypes.string, result: PrimitiveTypes.string },
     { operations: [...dateOperations], left: PrimitiveTypes.datetime, right: PrimitiveTypes.datetime, result: PrimitiveTypes.bool },
 ];
 export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
