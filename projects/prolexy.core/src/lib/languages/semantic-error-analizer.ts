@@ -151,6 +151,8 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
             var property = schema.properties.find(p => p.name === token?.value)?.type;
             if (property) return property;
             var method = schema.methods.find(p => p.name === token?.value)?.signeture;
+            if(!method)
+                method = ContextSchema.extensionMethods.find(p => p.name === token?.value)?.signeture;
             if (method) method.methodContext = schema;
             return method;
         };

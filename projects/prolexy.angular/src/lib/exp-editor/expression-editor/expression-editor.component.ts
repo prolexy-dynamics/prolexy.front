@@ -107,7 +107,7 @@ export class ExpressionEditorComponent implements ControlValueAccessor, OnInit, 
   @Input()
   get schema(): ContextSchema { return this._schema; }
   set schema(typeData: any) {
-    if(!typeData) return;
+    if (!typeData) return;
     if (typeData instanceof ContextSchema) {
       this._schema = typeData;
       return;
@@ -200,18 +200,7 @@ export class ExpressionEditorComponent implements ControlValueAccessor, OnInit, 
     e.stopPropagation();
     var t = this.getSuggestions()[suggestionIndex];
     if (!t) return;
-    var tokens = [...this.tokens];
-    tokens.splice(this.suggestionOpened, 1, t);
-    var errors1 = this.getError(tokens).length;
-    var tokens = [...this.tokens];
-    tokens.splice(this.suggestionOpened, 0, t);
-    var parsedTo2 = this.getError(tokens).length;
-    replace = false;
-    if (errors1 <= parsedTo2) replace = true;
-    if (replace && this.tokens[this.suggestionOpened] !== EOF)
-      this.tokens.splice(this.suggestionOpened, 1, t);
-    else
-      this.tokens.splice(this.suggestionOpened, 0, t);
+    this.tokens.splice(this.suggestionOpened, 0, t);
     if (t.tokenType === TokenType.const && t.type !== PrimitiveTypes.enum) {
       this.editModes[this.suggestionOpened] = 'edit';
     }
@@ -222,7 +211,7 @@ export class ExpressionEditorComponent implements ControlValueAccessor, OnInit, 
     this.setValueFromTokens();
   }
   remove(idx: number) {
-    if (this.tokens[idx] === EOF) return;
+    if (this.tokens[idx] === EOF || this.tokens.length === 1) return;
     this.tokens.splice(idx, 1);
     this.suggestionOpened = idx;
     setTimeout(() => {
@@ -292,7 +281,7 @@ export class ExpressionEditorComponent implements ControlValueAccessor, OnInit, 
   }
 }
 function onlyUnique(value: any, index: any, array: any): boolean {
-  return array.indexOf(value) === index;
+  return array.findIndex((a: any, idx: number) => a.value === value.value) === index;
 }
 export function createExpressionValidator(schema: ContextSchema, expectedType: IType): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {

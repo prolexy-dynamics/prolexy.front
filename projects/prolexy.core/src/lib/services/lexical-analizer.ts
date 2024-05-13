@@ -3,16 +3,16 @@ import { dateOperations, EOF, IType, KeyWords, logicalOperations, numericOperati
 class TokenDefinition {
     constructor(private returnsToken: TokenType, private regexPattern: string | RegExp, private type: IType | null = null) { }
     match(inputString: string): TokenMatch {
-        var match = inputString.match(this.regexPattern);
-        if (match?.length) {
+        var _match = inputString.match(this.regexPattern);
+        if (_match?.length) {
             var remainingText = '';
-            if (match[0].length != inputString.length)
-                remainingText = inputString.substring(match[0].length);
-            var isWord = match[0].match(/^[\w, ]+/)?.length;
-            if (!isWord || (isWord && !remainingText.match(/^[\w,\d]/)?.length))
+            if (_match[0].length != inputString.length)
+                remainingText = inputString.substring(_match[0].length);
+            var isWord = _match[0].match(/^[\w]+/)?.length;
+            if (!isWord || (isWord && !remainingText.match(/^[\w\d]/)?.length))
                 return new TokenMatch(true,
                     this.returnsToken,
-                    match[0],
+                    _match[0],
                     remainingText,
                     this.type);
         }
@@ -26,11 +26,11 @@ class TokenMatch {
 }
 let _tokenDefinitions =
     [
+        new TokenDefinition(TokenType.const, "^\\d+(\\.\\d+)?", PrimitiveTypes.number),
         new TokenDefinition(TokenType.const, "^null", PrimitiveTypes.null),
         new TokenDefinition(TokenType.const, /^\d{4}\/\d{1,2}\/\d{1,2}/, PrimitiveTypes.datetime),
         new TokenDefinition(TokenType.const, "^'[^']*'", PrimitiveTypes.string),
         new TokenDefinition(TokenType.const, /^"[^"]*"/, PrimitiveTypes.string),
-        new TokenDefinition(TokenType.const, "^\\d+(\\.\\d+)?", PrimitiveTypes.number),
         new TokenDefinition(TokenType.const, "^(true|false)", PrimitiveTypes.bool),
         new TokenDefinition(TokenType.operation, `^\\${Operations.begin_parentese}`),
         new TokenDefinition(TokenType.operation, `^\\${Operations.end_parentese}`),

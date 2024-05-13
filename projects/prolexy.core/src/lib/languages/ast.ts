@@ -251,7 +251,7 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
         if (!ast.span.contains(context.typeAt))
             return null;
         var result = (ast.tokenTypes.indexOf(TokenType.identifier) > -1)
-            ? this.suggestIdentifier(context, undefined, context.expectedType)
+            ? this.suggestIdentifier(context, undefined, context.expectedType, true)
             : { suggestions: [] as Array<Token>, suggestionLoader: null as (Promise<Array<Token>> | null) };
         if (ast.tokenTypes.indexOf(TokenType.const) > -1) {
             if (context.expectedType === PrimitiveTypes.number ||
@@ -513,7 +513,7 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
         return result;
     }
     visitImplicitAccessMember(ast: ImplicitAccessMember, context: TypeDetectorContext): any {
-        var result = this.suggestIdentifier(context, ast.token, context.expectedType);
+        var result = this.suggestIdentifier(context, ast.token, context.expectedType, true);
         context.lastselectedProperty = context.schema.properties.find(p => p.name == ast.token?.value);
         context.leftType = result.type!;
         if (result?.type instanceof MethodSigneture && ast.span.end === context.typeAt) {
@@ -567,10 +567,10 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
         }
         return result;
     }
-    private suggestIdentifier(context: TypeDetectorContext, token: Token | undefined, expectedType: ExpType | undefined) {
+    private suggestIdentifier(context: TypeDetectorContext, token: Token | undefined, expectedType: ExpType | undefined, implicit: boolean = false) {
         var result: TypeDetectorResult = { suggestions: [] };
         var extensionMethods = ContextSchema.extensionMethods
-            .filter(et => et.methodContext.isAssignableFrom(context.leftType))
+            .filter(et => et.methodContext.isAssignableFrom(context.leftType) || (implicit && et.methodContext == PrimitiveTypes.void))
             .map((n) => {
                 return new Token(TokenType.identifier, `$${n.name}:${n.caption}`);
             }, new Array<Token>());
@@ -582,7 +582,10 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
             var prop = ctx.properties.find(p => p.name === token?.value);
             if (prop)
                 return prop.type;
-            return (ctx.methods.find(m => m.name === token?.value)?.signeture);
+            var method = (ctx.methods.find(m => m.name === token?.value)?.signeture);
+            if(!method)
+                method = ContextSchema.extensionMethods.find(m => m.name === token?.value)?.signeture;
+            return method;
         }
         if (context.leftType)
             result.suggestions = [...result.suggestions, ...this._sug(context.leftType, expectedType)]
