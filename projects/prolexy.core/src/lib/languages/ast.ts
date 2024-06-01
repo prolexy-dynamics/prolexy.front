@@ -450,6 +450,8 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
         if (!context.expectedType)
             return { suggestions: [new Token(TokenType.keyword, KeyWords.andThen)] };
         result = this.expectedOperators({ type: signature?.returnType, suggestions: [] }, context);
+        if(signature?.returnType != PrimitiveTypes.void &&
+            signature?.returnType != PrimitiveTypes.number)
         result.suggestions.push(new Token(TokenType.operation, Operations.point));
         return result;
     }
