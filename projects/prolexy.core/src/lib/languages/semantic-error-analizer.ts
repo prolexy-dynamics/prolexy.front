@@ -21,7 +21,7 @@ var compatiblityChecker = [
     { operations: [Operations.is, Operations.isNot], left: PrimitiveTypes.enum, right: PrimitiveTypes.enum, result: PrimitiveTypes.bool },
     { operations: [...logicalOperations], left: PrimitiveTypes.bool, right: PrimitiveTypes.bool, result: PrimitiveTypes.bool },
     { operations: [...stringOperations], left: PrimitiveTypes.string, right: PrimitiveTypes.string, result: PrimitiveTypes.bool },
-    { operations: [...Operations.plus], left: PrimitiveTypes.string, right: PrimitiveTypes.string, result: PrimitiveTypes.string },
+    { operations: [...Operations.plus], left: PrimitiveTypes.string, right: undefined, result: PrimitiveTypes.string },
     { operations: [...dateOperations], left: PrimitiveTypes.datetime, right: PrimitiveTypes.datetime, result: PrimitiveTypes.bool },
 ];
 export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
@@ -73,7 +73,7 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
                 context.errors.push({ span: binary.right.span, message: `type mismatch: operation "${binary.operation}" not compatible for enumeration operand` });
             return PrimitiveTypes.bool;
         }
-        var entry = compatiblityChecker.find(m => m.operations.find(o => o === binary.operation) && m.left === leftType && m.right === rightType);
+        var entry = compatiblityChecker.find(m => m.operations.find(o => o === binary.operation) && m.left?.isAssignableFrom(leftType) && m.right?.isAssignableFrom(rightType));
         if (!entry) {
             context.errors.push({ span: binary.right.span, message: `type mismatch: operation "${binary.operation}" not compatible with type '${leftType?.name}' and '${rightType?.name}'` })
             return leftType;
@@ -156,12 +156,12 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
             if (method) method.methodContext = schema;
             return method;
         };
+        var result: IType | undefined;
         if (leftType instanceof ContextSchema) {
             result = resolver(leftType as ContextSchema);
             if (result)
                 return result;
         }
-        var result: IType | undefined;
         if (!leftType) {
             for (const schem of context.stackCall.iterator().filter(t => t instanceof ContextSchema)) {
                 result = resolver(schem as ContextSchema);
@@ -173,7 +173,7 @@ export class SemanticErrorAnalizer implements AstVisitor<SemanticErrorContext> {
             }
         }
         var method = ContextSchema.extensionMethods.find(p => p.methodContext.isAssignableFrom(leftType || context.schema) && p.name === token?.value);
-        if (!method) return context!.schema;
+        if (!method) return leftType || context!.schema;
         if (method) {
             method = method.clone();
             method.methodContext = leftType || context.schema;

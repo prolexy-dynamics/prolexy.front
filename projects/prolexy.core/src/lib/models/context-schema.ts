@@ -129,6 +129,23 @@ export class GenericType implements IType {
     }
 
 }
+export class DynamicType implements IType {
+    constructor(public name: string, public innerType: IType | null = null) { }
+
+    clone(): DynamicType {
+        return new DynamicType(this.name, this.innerType);
+    }
+    get genericArguments(): IType[] {
+        return [this];
+    }
+    makeGenericType(specificTypes: { [key: string]: IType }): IType {
+        return specificTypes[this.name] || this;
+    }
+    isAssignableFrom(type: IType): unknown {
+        return true;
+    }
+
+}
 export class Enumeration implements IType {
     constructor(public name: string, public items: { value: string, text: string }[]) {
     }

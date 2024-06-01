@@ -1,4 +1,4 @@
-import { MethodParameter, DataSource } from "../models/context-schema";
+import { MethodParameter, DataSource, DynamicType } from "../models/context-schema";
 import { GenericType } from "../models/context-schema";
 import { ContextSchema, Enumerable, Enumeration, ExpType, ExtensionMethod, Method, MethodSigneture, Property } from "../models/context-schema";
 import { OperationOrders } from "../models/operation-orders";
@@ -449,7 +449,9 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
         if (result) return result;
         if (!context.expectedType)
             return { suggestions: [new Token(TokenType.keyword, KeyWords.andThen)] };
-        return this.expectedOperators({ type: signature?.returnType, suggestions: [] }, context);
+        result = this.expectedOperators({ type: signature?.returnType, suggestions: [] }, context);
+        result.suggestions.push(new Token(TokenType.operation, Operations.point));
+        return result;
     }
     visitAnonymousMethod(anonymousMethod: AnonymousMethod, context: TypeDetectorContext): any {
         var method = (context.expectedType as MethodSigneture)
@@ -476,7 +478,7 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
 
         if (ast.left.span.contains(context.typeAt))
             return result;
-        if (result?.type instanceof ContextSchema ||
+        if (result?.type instanceof ContextSchema || result?.type instanceof DynamicType ||
             ContextSchema.extensionMethods.find(em => em.methodContext.isAssignableFrom(result?.type))) {
             if (ast.span.end <= context.typeAt) {
                 if (result.type instanceof ContextSchema &&
@@ -564,6 +566,9 @@ export class TypeDetectorVisitor implements AstVisitor<TypeDetectorContext> {
                         .map(m => new Token(TokenType.identifier, `$${m.name}:${m.caption}`)))];
                 result.push(new Token(TokenType.operation, Operations.begin_parentese));
             }
+        }
+        if(type instanceof DynamicType){
+            result=[new Token(TokenType.identifier, "PROPERTY", PrimitiveTypes.bool, true)];
         }
         return result;
     }

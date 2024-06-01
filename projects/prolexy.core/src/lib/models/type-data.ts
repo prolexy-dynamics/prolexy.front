@@ -1,4 +1,4 @@
-import { ContextSchema, ContextSchemaRepository, DataSource, Enumerable, Enumeration, ExtensionMethod, GenericType, Method, MethodParameter, MethodSigneture, Property } from "./context-schema";
+import { ContextSchema, ContextSchemaRepository, DataSource, DynamicType, Enumerable, Enumeration, ExtensionMethod, GenericType, Method, MethodParameter, MethodSigneture, Property } from "./context-schema";
 import { IType, PrimitiveTypes } from "./token";
 
 export enum TypeCategory {
@@ -8,7 +8,8 @@ export enum TypeCategory {
     Method = 3,
     Enumerable = 4,
     Generic = 5,
-    ReferenceType = 6
+    ReferenceType = 6,
+    Dynamic = 7
 }
 function getTypeData(category: TypeCategory): Function {
     switch (category) {
@@ -19,6 +20,7 @@ function getTypeData(category: TypeCategory): Function {
         case TypeCategory.Enumerable: return EnumerableTypeData;
         case TypeCategory.Generic: return GenericTypeData;
         case TypeCategory.ReferenceType: return ComplexTypeReferenceData;
+        case TypeCategory.Dynamic: return DynamicTypeData;
     }
 }
 function convert(obj: any): ITypeData {
@@ -89,6 +91,19 @@ export class GenericTypeData implements ITypeData {
 
     createType(context: context): IType {
         return new GenericType(this.name);
+    }
+    assign(obj: any) {
+        Object.assign(this, obj);
+    }
+}
+export class DynamicTypeData implements ITypeData {
+    constructor(
+        public name: string
+    ) { }
+    category: TypeCategory = TypeCategory.Dynamic;
+
+    createType(context: context): IType {
+        return new DynamicType(this.name);
     }
     assign(obj: any) {
         Object.assign(this, obj);

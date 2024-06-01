@@ -1,4 +1,4 @@
-import { Enumeration } from "./context-schema";
+import { DynamicType, Enumeration } from "./context-schema";
 import { ITypeData, TypeCategory } from "./type-data";
 
 export class Token {
@@ -10,7 +10,7 @@ export class Token {
     }
     private _value: string | undefined;
     set value(val: string | undefined) {
-        if (this.type === PrimitiveTypes.string && val?.match(/^"[^"]*"/))
+        if (this.type === PrimitiveTypes.string && val?.match(/^('|")[^"]*("|')/))
             this._value = val.substring(1, val.length - 1);
         else
             this._value = val;
@@ -74,7 +74,7 @@ export class PrimitiveTypes implements IType {
         return this;
     }
     isAssignableFrom(type: IType): unknown {
-        return this === type;
+        return this === type || type instanceof DynamicType;
     }
     static void = new PrimitiveTypes("void");
     static number = new PrimitiveTypes("number");
